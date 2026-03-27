@@ -8,6 +8,10 @@
 
 ![demo](screenshots/demo.png)
 
+支持 Claude Code 和 Factory Droid 等基于 Anthropic API 的工具。
+
+![droid-demo](screenshots/droid-demo.png)
+
 ## 功能特性
 
 - **实时使用量追踪**：显示 5 小时 Token 配额使用率、重置时间
@@ -166,6 +170,36 @@ Copy-Item target\release\glm-plan-usage.exe "$env:USERPROFILE\.claude\glm-plan-u
 - `GLM_*` 优先级高于 `ANTHROPIC_*`
 - 如果两者都设置了，优先使用 `GLM_*`
 - 默认 Base URL: `https://open.bigmodel.cn/api/anthropic`
+
+#### Factory Droid 配置
+
+如果使用 Factory Droid，需要在 `~/.factory/settings.json` 的 `customModels` 中配置：
+
+```json
+{
+  "customModels": [
+    {
+      "model": "glm-5-turbo",
+      "baseUrl": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "apiKey": "你的API密钥"
+    }
+  ]
+}
+```
+
+然后在 `statusLine` 中使用 Node.js 版本：
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node C:/Users/用户名/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+Node.js 版本会自动读取 `customModels` 中的配置。
 
 ### 支持的平台
 

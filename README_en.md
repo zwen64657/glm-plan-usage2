@@ -8,6 +8,10 @@ Forked from [jukanntenn/glm-plan-usage](https://github.com/jukanntenn/glm-plan-u
 
 ![demo](screenshots/demo.png)
 
+Supports Claude Code, Factory Droid, and other Anthropic API-based tools.
+
+![droid-demo](screenshots/droid-demo.png)
+
 ## Features
 
 - **Real-time Usage Tracking**: 5-hour Token quota usage percentage with reset time
@@ -166,6 +170,36 @@ The plugin supports two environment variable formats:
 - `GLM_*` takes priority over `ANTHROPIC_*`
 - If both are set, `GLM_*` is used
 - Default Base URL: `https://open.bigmodel.cn/api/anthropic`
+
+#### Factory Droid Configuration
+
+For Factory Droid, configure in `~/.factory/settings.json`:
+
+```json
+{
+  "customModels": [
+    {
+      "model": "glm-5-turbo",
+      "baseUrl": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "apiKey": "your-api-key"
+    }
+  ]
+}
+```
+
+Then use the Node.js version in `statusLine`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node C:/Users/username/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+The Node.js version automatically reads configuration from `customModels`.
 
 ### Supported Platforms
 
