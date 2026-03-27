@@ -65,7 +65,35 @@ Forked from [jukanntenn/glm-plan-usage](https://github.com/jukanntenn/glm-plan-u
 
 ## Installation
 
-### Build from Source
+### Option 1: Pure Node.js Implementation (Recommended)
+
+No compilation needed. Uses Node.js built-in HTTPS module with system certificate store, avoiding TLS compatibility issues.
+
+**Linux/macOS:**
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node /path/to/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+**Windows:**
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node C:/Users/YourUsername/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+### Option 2: Build from Source
 
 ```bash
 git clone https://github.com/zwen64657/glm-plan-usage2.git
@@ -75,7 +103,7 @@ cargo build --release
 
 The compiled binary is at `target/release/glm-plan-usage` (Windows: `glm-plan-usage.exe`).
 
-### Manual Installation
+### Manual Installation (Rust Binary)
 
 Copy the binary to Claude Code's plugin directory:
 

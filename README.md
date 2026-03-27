@@ -65,7 +65,35 @@
 
 ## 安装
 
-### 从源码构建
+### 方式一：纯 Node.js 实现（推荐）
+
+无需编译，使用 Node.js 内置 HTTPS 模块，自动使用系统证书存储，避免 TLS 兼容性问题。
+
+**Linux/macOS:**
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node /path/to/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+**Windows:**
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node C:/Users/你的用户名/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+### 方式二：从源码构建
 
 ```bash
 git clone https://github.com/zwen64657/glm-plan-usage2.git
@@ -75,7 +103,7 @@ cargo build --release
 
 编译后的可执行文件在 `target/release/glm-plan-usage`（Windows 为 `glm-plan-usage.exe`）。
 
-### 手动安装
+### 手动安装（Rust 二进制）
 
 将可执行文件放到 Claude Code 的插件目录：
 
