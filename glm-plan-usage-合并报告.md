@@ -744,6 +744,32 @@ const baseUrl = getEnv("GLM_BASE_URL") || getEnv("ANTHROPIC_BASE_URL") || "https
 | 分发 | 单文件 | 单文件 |
 | 兼容性 | 最佳 | 最佳 |
 
+### Node.js 版本时间窗口同步（2026-03-27）
+
+#### 问题描述
+Node.js 版本最初使用简单的 `now - 5h` 查询模型使用量，与配额窗口不同步。
+
+#### 解决方案
+修改 `fetchStats` 函数，使用 `nextResetTime` 计算查询窗口：
+
+```javascript
+// 获取 reset time 用于时间窗口同步
+const resetTimeMs = tokenLimit?.nextResetTime;
+
+let start, end;
+if (resetTimeMs) {
+  // 使用 reset time 计算窗口：从 (reset - 5h) 到 reset
+  end = new Date(resetTimeMs);
+  start = new Date(end.getTime() - 5 * 3600_000);
+} else {
+  // 回退到简单 5h 窗口
+  end = new Date();
+  start = new Date(end.getTime() - 5 * 3600_000);
+}
+```
+
+调用次数现在会在配额重置时同步归零。
+
 ---
 
 ## 安装与配置

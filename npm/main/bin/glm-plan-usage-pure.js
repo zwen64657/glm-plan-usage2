@@ -81,40 +81,45 @@ function fmtTokens(n) {
 async function fetchStats(client) {
   if (cache && Date.now() - cache.ts < CACHE_TTL_MS) return cache.data;
 
-  const [quota, modelUsage] = await Promise.allSettled([
-    client.fetchQuota(),
-    (async () => {
-      try {
-        // try fetching model usage
-        const now = new Date();
-        const start = new Date(now.getTime() - 5 * 3600_000);
-        const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;
-        return await client.fetchModelUsage(fmt(start), fmt(now));
-      } catch { return null; }
-    })(),
-  ]);
+  // First fetch quota to get nextResetTime for time window sync
+  const quota = await client.fetchQuota().catch(() => null);
+  if (!quota || !quota.success) return null;
 
-  if (quota.status === "rejected") return null;
-
-  const q = quota.value;
-  if (!q || !q.success) return null;
-
-  const level = (q.data?.level || "pro").toLowerCase();
-  const isNewPlan = q.data?.limits?.some(l => l.unit === 6);
+  const level = (quota.data?.level || "pro").toLowerCase();
+  const isNewPlan = quota.data?.limits?.some(l => l.unit === 6);
 
   // Token usage (5h) - first TOKENS_LIMIT with unit=3
-  const tokenLimit = q.data?.limits?.find(l => l.type === "TOKENS_LIMIT" && l.unit === 3);
+  const tokenLimit = quota.data?.limits?.find(l => l.type === "TOKENS_LIMIT" && l.unit === 3);
   // Weekly usage - TOKENS_LIMIT with unit=6
-  const weeklyLimit = q.data?.limits?.find(l => l.type === "TOKENS_LIMIT" && l.unit === 6);
+  const weeklyLimit = quota.data?.limits?.find(l => l.type === "TOKENS_LIMIT" && l.unit === 6);
   // MCP usage - TIME_LIMIT
-  const mcpLimit = q.data?.limits?.find(l => l.type === "TIME_LIMIT");
+  const mcpLimit = quota.data?.limits?.find(l => l.type === "TIME_LIMIT");
 
-  // Model usage
+  // Get reset time for time window sync (sync with quota window)
+  const resetTimeMs = tokenLimit?.nextResetTime;
+
+  // Fetch model usage with synced time window
   let callCount = null, tokensUsed = null;
-  if (modelUsage.status === "fulfilled" && modelUsage.value?.data?.totalUsage) {
-    callCount = modelUsage.value.data.totalUsage.totalModelCallCount ?? null;
-    tokensUsed = modelUsage.value.data.totalUsage.totalTokensUsage ?? null;
-  }
+  try {
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;
+    
+    let start, end;
+    if (resetTimeMs) {
+      // Use reset time to calculate window: from (reset - 5h) to reset
+      end = new Date(resetTimeMs);
+      start = new Date(end.getTime() - 5 * 3600_000);
+    } else {
+      // Fallback to simple 5h window
+      end = new Date();
+      start = new Date(end.getTime() - 5 * 3600_000);
+    }
+    
+    const modelUsage = await client.fetchModelUsage(fmt(start), fmt(end));
+    if (modelUsage?.data?.totalUsage) {
+      callCount = modelUsage.data.totalUsage.totalModelCallCount ?? null;
+      tokensUsed = modelUsage.data.totalUsage.totalTokensUsage ?? null;
+    }
+  } catch { /* ignore */ }
 
   const result = { level, isNewPlan, tokenLimit, weeklyLimit, mcpLimit, callCount, tokensUsed };
   cache = { data: result, ts: Date.now() };
