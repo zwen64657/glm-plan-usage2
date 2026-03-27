@@ -653,6 +653,99 @@ let (start_time, end_time) = if let Some(reset_ms) = reset_time_ms {
 
 ---
 
+## 5. 纯 Node.js 实现
+
+### 修改时间
+2026-03-27
+
+### 修改目的
+解决 Rust 二进制文件在某些平台上因 TLS 证书问题导致 HTTPS 请求失败的问题。
+
+### 问题背景
+原有的 Rust 原生二进制文件使用 rustls TLS 库，通过 webpki-roots 内置的根证书列表验证 HTTPS 连接。但在某些网络环境下（特别是中国大陆），服务器使用 TrustAsia 等本地 CA 签发的证书，不在 webpki-roots 信任列表中，导致请求静默失败。
+
+### 解决方案
+
+#### 方案 A：纯 Node.js 实现（推荐）
+
+添加 `glm-plan-usage-pure.js`，使用 Node.js 内置 `https` 模块：
+- 自动使用操作系统证书存储（Windows 用 SChannel，macOS 用 Keychain，Linux 用 OpenSSL）
+- 无需编译，只要有 Node.js 环境即可运行
+- 避免所有 TLS 兼容性问题
+
+#### 方案 B：Rust 切换到 native-tls
+
+修改 `Cargo.toml`，将 ureq 从 rustls 切换到 native-tls：
+```toml
+# 修改前
+ureq = { version = "2.10", features = ["json"] }
+
+# 修改后
+ureq = { version = "2.10", features = ["json", "native-tls"], default-features = false }
+```
+
+native-tls 使用操作系统原生 TLS 库，自动信任系统证书。
+
+### 文件变更
+
+**新增文件：**
+- `npm/main/bin/glm-plan-usage-pure.js` — 纯 Node.js 实现
+
+**修改文件：**
+- `Cargo.toml` — ureq 切换到 native-tls
+- `Cargo.lock` — 依赖更新
+- `README.md` — 添加 Node.js 安装方式
+- `README_en.md` — 添加 Node.js 安装方式
+
+### 环境变量支持
+
+Node.js 版本支持两种环境变量格式：
+
+```javascript
+const token = getEnv("GLM_AUTH_TOKEN") || getEnv("ANTHROPIC_AUTH_TOKEN");
+const baseUrl = getEnv("GLM_BASE_URL") || getEnv("ANTHROPIC_BASE_URL") || "https://open.bigmodel.cn/api/anthropic";
+```
+
+- `GLM_*` 优先级高于 `ANTHROPIC_*`
+- 兼容不同版本的 Claude Code 配置
+
+### 使用方式
+
+**Node.js 版本配置：**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node C:/Users/用户名/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
+```
+
+**Rust 二进制配置：**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "%USERPROFILE%\\.claude\\glm-plan-usage\\glm-plan-usage.exe",
+    "padding": 0
+  }
+}
+```
+
+### 两种方案对比
+
+| 特性 | Node.js 版本 | Rust 版本 (native-tls) |
+|------|-------------|----------------------|
+| 依赖 | 需要 Node.js | 无依赖 |
+| 编译 | 无需编译 | 需要 Rust 工具链 |
+| TLS | 系统证书 | 系统证书 |
+| 启动速度 | 稍慢 | 更快 |
+| 分发 | 单文件 | 单文件 |
+| 兼容性 | 最佳 | 最佳 |
+
+---
+
 ## 安装与配置
 
 ### 安装位置
