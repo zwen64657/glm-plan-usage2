@@ -1,0 +1,38 @@
+{
+  "name": "@jukanntenn/glm-plan-usage",
+  "version": "0.0.3",
+  "description": "GLM Plan Usage - StatusLine plugin for Claude Code",
+  "bin": {
+    "glm-plan-usage": "bin/glm-plan-usage.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "optionalDependencies": {
+    "@jukanntenn/glm-plan-usage-darwin-x64": "0.0.0",
+    "@jukanntenn/glm-plan-usage-darwin-arm64": "0.0.0",
+    "@jukanntenn/glm-plan-usage-linux-x64": "0.0.0",
+    "@jukanntenn/glm-plan-usage-linux-x64-musl": "0.0.0",
+    "@jukanntenn/glm-plan-usage-linux-arm64": "0.0.0",
+    "@jukanntenn/glm-plan-usage-linux-arm64-musl": "0.0.0",
+    "@jukanntenn/glm-plan-usage-win32-x64": "0.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jukanntenn/glm-plan-usage.git"
+  },
+  "keywords": [
+    "claude",
+    "statusline",
+    "claude-code",
+    "rust",
+    "cli",
+    "glm",
+    "zhipu"
+  ],
+  "author": "Alice",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

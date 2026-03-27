@@ -1,0 +1,20 @@
+{
+  "name": "@jukanntenn/glm-plan-usage-linux-x64-musl",
+  "version": "0.0.0",
+  "description": "Linux x64 static binary for GLM Plan Usage (musl libc)",
+  "files": [
+    "glm-plan-usage"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jukanntenn/glm-plan-usage.git"
+  },
+  "author": "Alice",
+  "license": "MIT"
+}

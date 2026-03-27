@@ -1,0 +1,20 @@
+{
+  "name": "@jukanntenn/glm-plan-usage-linux-arm64",
+  "version": "0.0.0",
+  "description": "Linux ARM64 binary for GLM Plan Usage",
+  "files": [
+    "glm-plan-usage"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jukanntenn/glm-plan-usage.git"
+  },
+  "author": "Alice",
+  "license": "MIT"
+}
