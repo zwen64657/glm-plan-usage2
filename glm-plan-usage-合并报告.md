@@ -10,6 +10,8 @@
 2. [周限量支持](#2-周限量支持)
 3. [模型判断功能](#3-模型判断功能)
 4. [调用次数显示](#4-调用次数显示)
+5. [纯 Node.js 实现](#5-纯-nodejs-实现)
+6. [Rust/JS 版本统一与 TLS 修复](#6-rustjs-版本统一与-tls-修复)
 
 ---
 
@@ -802,6 +804,156 @@ const fmt = (d) => {
 
 ---
 
+## 6. Rust/JS 版本统一与 TLS 修复
+
+### 修改时间
+2026-03-28
+
+### 问题背景
+2026-03-27 凌晨 2 点左右，有用户反馈 Rust 版本安装后无法显示用量信息。
+
+**最初分析（错误）：** 当时误判为证书信任问题，认为 rustls 使用的 webpki-roots 不包含某些国内 CA（如 TrustAsia），导致 HTTPS 请求失败。基于此错误分析，紧急开发了纯 Node.js 版本作为替代方案。
+
+**真正原因（后来发现）：** 实际上是 commit `ef384a9` 将 `ureq` 从 rustls 切换到 native-tls 时，Windows 上 native-tls 后端链接不完整，导致出现 `cannot make HTTPS request because no TLS backend is configured` 错误。
+
+修复方法是恢复使用 rustls（ureq 默认 TLS 后端），Rust 版本随即恢复正常。JS 版本保留作为备选方案。
+
+### 修改目的
+1. 修复 Rust 版本 TLS 后端缺失导致 HTTPS 请求失败的问题
+2. 统一 Rust 和 JS 版本的细微差异
+3. 保留 JS 版本作为备选方案
+
+### TLS 问题修复
+
+#### 问题描述
+commit `ef384a9` 将 `ureq` 从 rustls 切换到 native-tls：
+```toml
+# 问题配置
+ureq = { version = "2.10", features = ["json", "native-tls"], default-features = false }
+```
+
+导致 Windows 上出现错误：
+```
+cannot make HTTPS request because no TLS backend is configured
+```
+
+#### 根本原因
+native-tls 在 Windows 上依赖 SChannel，但编译时 TLS 后端链接不完整。
+
+#### 解决方案
+恢复使用 rustls（ureq 默认 TLS 后端）：
+```toml
+# 修复配置
+ureq = { version = "2.10", features = ["json"] }
+```
+
+rustls 是纯 Rust 实现的 TLS 库，跨平台兼容性更好。
+
+### 版本统一
+
+#### 6.1 JS 版本加重试逻辑
+
+**修改文件：** `npm/main/bin/glm-plan-usage-pure.js`
+
+**修改前：**
+```javascript
+async function fetchStats(client) {
+  if (cache && Date.now() - cache.ts < CACHE_TTL_MS) return cache.data;
+
+  const quota = await client.fetchQuota().catch(() => null);
+  if (!quota || !quota.success) return null;
+  // ...
+}
+```
+
+**修改后：**
+```javascript
+async function fetchStats(client) {
+  if (cache && Date.now() - cache.ts < CACHE_TTL_MS) return cache.data;
+
+  // Retry logic (3 attempts)
+  let quota = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    quota = await client.fetchQuota().catch(() => null);
+    if (quota && quota.success) break;
+    if (attempt < 2) await new Promise(r => setTimeout(r, 100));
+  }
+  if (!quota || !quota.success) return null;
+  // ...
+}
+```
+
+#### 6.2 Rust 版本加 debug.log 写入
+
+**修改文件：** `src/main.rs`
+
+**新增功能：**
+- 自动写入日志到 `~/.claude/glm-plan-usage/debug.log`
+- 设置 `GLM_DEBUG=1` 时同时输出到 stderr
+
+**关键代码：**
+```rust
+use std::fs::OpenOptions;
+use std::io::Write;
+
+fn main() {
+    // Setup debug logging
+    let debug = std::env::var("GLM_DEBUG").unwrap_or_default() == "1";
+    let log_path = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".claude")
+        .join("glm-plan-usage")
+        .join("debug.log");
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .ok();
+
+    let log = |msg: &str| {
+        let ts = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f");
+        let line = format!("[{}] {}\n", ts, msg);
+        if debug {
+            eprint!("[glm] {}", msg);
+        }
+        if let Some(ref mut file) = log_file.as_ref() {
+            let _ = file.write_all(line.as_bytes());
+        }
+    };
+
+    // 使用示例
+    log(&format!("stdin: {}", &input_text.chars().take(200).collect::<String>()));
+    log(&format!("model: {:?}", input.model.as_ref().map(|m| &m.id)));
+    log(&format!("output: {}", if output.is_empty() { "empty".to_string() } else { format!("{} chars", output.len()) }));
+}
+```
+
+**日志格式：**
+```
+[2026-03-28T02:06:58.756] stdin: {"model":{"id":"glm-4"}}
+[2026-03-28T02:06:58.757] model: Some("glm-4")
+[2026-03-28T02:06:59.078] output: 81 chars
+```
+
+### 统一后对比
+
+| 功能 | JS 版本 | Rust 版本 |
+|------|---------|-----------|
+| 重试逻辑 | ✅ 3次，100ms间隔 | ✅ 3次，100ms间隔 |
+| debug.log | ✅ | ✅ |
+| GLM_DEBUG=1 | ✅ 输出到 stderr | ✅ 输出到 stderr |
+| 环境变量 | GLM_* / ANTHROPIC_* | GLM_* / ANTHROPIC_* |
+| Level 解析 | data.level | data.level |
+| Token 识别 | type + unit=3 | type + unit=3 |
+| Weekly 识别 | type + unit=6 | type + unit=6 |
+| 无 reset_time | 不请求 model-usage | 不请求 model-usage |
+| 时区处理 | 平台自适应 | 平台自适应 |
+| 颜色规则 | ≤79绿 80-94黄 ≥95红 | ≤79绿 80-94黄 ≥95红 |
+| 缓存 TTL | 120秒 | 120秒 |
+| 超时 | 5秒 | 5秒 |
+
+---
+
 ## 安装与配置
 
 ### 安装位置
@@ -859,4 +1011,181 @@ $env:GLM_BASE_URL="https://open.bigmodel.cn/api/anthropic"
 │    │         │         └── 重置时间（绝对时间）
 │    └── 5小时配额使用率
 └── Token 图标
+```
+
+---
+
+## 7. 简化显示与零值显示（2026-03-28）
+
+### 修改时间
+2026-03-28
+
+### 修改目的
+1. 简化显示格式，回归 API 原始数据
+2. 启动时显示零值，而不是空白
+3. 移除颜色警告功能
+
+### 修改内容
+
+#### 7.1 简化显示格式
+
+**调用次数**：从 `99/9000` 改为 `99`（只显示 raw count，不再估算上限）
+
+**周限量**：从 `6000/30000` 改为 `20%`（只显示百分比）
+
+**删除常量**：
+```rust
+// 已删除
+const OLD_PLAN_LIMITS: [(PlanLevel, i64); 3] = [...];
+const NEW_PLAN_5H_LIMITS: [(PlanLevel, i64); 3] = [...];
+const NEW_PLAN_WEEKLY_LIMITS: [(PlanLevel, i64); 3] = [...];
+fn get_limit(...) -> i64 { ... }
+```
+
+#### 7.2 零值显示
+
+**修改前**：无 token 或获取数据失败时，不显示任何内容
+
+**修改后**：显示零值占位
+```
+🪙 0% · 📊 0 · ⚡ 0
+```
+
+#### 7.3 移除颜色警告
+
+**修改前**：根据使用率变色
+- 绿色 (0-79%)
+- 黄色 (80-94%)
+- 红色 (95-100%)
+
+**修改后**：统一使用青绿色 (color 109)
+
+### 代码变更
+
+#### Rust 版本 (src/core/segments/glm_usage.rs)
+
+**删除常量和函数**：
+```rust
+// 已删除
+const OLD_PLAN_LIMITS: [...]
+const NEW_PLAN_5H_LIMITS: [...]
+const NEW_PLAN_WEEKLY_LIMITS: [...]
+fn get_limit(...) -> i64 { ... }
+```
+
+**简化 format_stats**：
+```rust
+fn format_stats(stats: &UsageStats) -> String {
+    let mut parts = Vec::new();
+
+    // Token usage with reset time
+    if let Some(token) = &stats.token_usage {
+        let reset_time = token.reset_at.and_then(format_reset_time)
+            .unwrap_or_else(|| "--:--".to_string());
+        parts.push(format!("🪙 {}% (⏰ {})", token.percentage, reset_time));
+    }
+
+    // Call count (raw number only)
+    if let Some(call_count) = stats.call_count {
+        parts.push(format!("📊 {}", call_count));
+    }
+
+    // Weekly usage (new plan only, percentage)
+    if let Some(weekly) = &stats.weekly_usage {
+        parts.push(format!("📅 {}%", weekly.percentage));
+    }
+
+    // MCP raw count
+    if let Some(mcp) = &stats.mcp_usage {
+        parts.push(format!("🌐 {}/{}", mcp.used, mcp.limit));
+    }
+
+    // Token consumption (5-hour window)
+    if let Some(tokens) = stats.tokens_used {
+        parts.push(format!("⚡ {}", format_tokens(tokens)));
+    }
+
+    parts.join(" · ")
+}
+```
+
+**简化 get_color**：
+```rust
+fn get_color(_stats: &UsageStats) -> SegmentStyle {
+    SegmentStyle {
+        color: None,
+        color_256: Some(109),
+        bold: true,
+    }
+}
+```
+
+**零值显示**：
+```rust
+let text = match &stats {
+    Some(s) => Self::format_stats(s),
+    None => "🪙 0% · 📊 0 · ⚡ 0".to_string(),
+};
+```
+
+#### JS 版本 (npm/main/bin/glm-plan-usage-pure.js)
+
+**删除常量**：
+```javascript
+// 已删除
+const OLD_PLAN_5H = { lite: 1800, pro: 9000, max: 36000 };
+const NEW_PLAN_5H = { lite: 1200, pro: 6000, max: 24000 };
+const NEW_PLAN_WEEKLY = { lite: 6000, pro: 30000, max: 120000 };
+```
+
+**简化 format**：
+```javascript
+function format(stats) {
+  if (!stats) {
+    return `${color256(109)}\x1b[1m🪙 0% · 📊 0 · ⚡ 0${reset()}`;
+  }
+
+  const parts = [];
+
+  if (stats.tokenLimit) {
+    parts.push(`🪙 ${stats.tokenLimit.percentage}% (⏰ ${fmtReset(stats.tokenLimit.nextResetTime)})`);
+  }
+
+  if (stats.callCount != null) {
+    parts.push(`📊 ${stats.callCount}`);
+  }
+
+  if (stats.weeklyLimit) {
+    parts.push(`📅 ${stats.weeklyLimit.percentage}%`);
+  }
+
+  if (stats.mcpLimit) {
+    parts.push(`🌐 ${stats.mcpLimit.currentValue}/${stats.mcpLimit.usage}`);
+  }
+
+  if (stats.tokensUsed != null) {
+    parts.push(`⚡ ${fmtTokens(stats.tokensUsed)}`);
+  }
+
+  if (parts.length === 0) return "";
+
+  return `${color256(109)}\x1b[1m${parts.join(" · ")}${reset()}`;
+}
+```
+
+### 最终效果
+
+**有数据时（老套餐）**：
+```
+🪙 10% (⏰ 6:13) · 📊 143 · 🌐 0/1000 · ⚡ 5.52M
+```
+
+**有数据时（新套餐，有周限量）**：
+```
+🪙 85% (⏰ 3:39) · 📊 156 · 📅 23% · 🌐 50/1000 · ⚡ 2.50M
+```
+
+**无数据时**：
+```
+🪙 0% · 📊 0 · ⚡ 0
 ```

@@ -11,37 +11,41 @@ pub struct GlmApiClient {
     platform: Platform,
 }
 
-/// Quota limit response with level field
+/// Quota limit response with level field (level is inside data, not at root)
 #[derive(Debug, serde::Deserialize)]
 struct QuotaLimitResponseWithLevel {
     #[allow(dead_code)]
     code: i32,
     msg: String,
-    data: QuotaLimitData,
+    data: QuotaLimitDataWithLevel,
     success: bool,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct QuotaLimitDataWithLevel {
+    #[serde(default)]
     level: Option<String>,
+    limits: Vec<QuotaLimitItem>,
 }
 
 impl GlmApiClient {
     /// Create client from environment variables
     pub fn from_env() -> Result<Self> {
-        let token = std::env::var("ANTHROPIC_AUTH_TOKEN")
-            .map_err(|_| ApiError::MissingEnvVar("ANTHROPIC_AUTH_TOKEN".to_string()))?;
+        let token = std::env::var("GLM_AUTH_TOKEN")
+            .or_else(|_| std::env::var("ANTHROPIC_AUTH_TOKEN"))
+            .map_err(|_| ApiError::MissingEnvVar("GLM_AUTH_TOKEN or ANTHROPIC_AUTH_TOKEN".to_string()))?;
 
-        let base_url = std::env::var("ANTHROPIC_BASE_URL")
+        let base_url = std::env::var("GLM_BASE_URL")
+            .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
             .unwrap_or_else(|_| "https://open.bigmodel.cn/api/anthropic".to_string());
 
         let platform =
             Platform::detect_from_url(&base_url).ok_or(ApiError::PlatformDetectionFailed)?;
 
-        // Fix base URL for ZHIPU platform (remove /anthropic suffix for monitor API)
-        let base_url = if platform == Platform::Zhipu {
-            base_url
-                .replace("/api/anthropic", "/api")
-                .replace("/anthropic", "")
-        } else {
-            base_url
-        };
+        // Fix base URL for monitor API (matching JS: always apply replacement)
+        let base_url = base_url
+            .replace("/api/anthropic", "/api")
+            .replace("/anthropic", "");
 
         let agent = ureq::AgentBuilder::new()
             .timeout(Duration::from_secs(5))
@@ -101,18 +105,19 @@ impl GlmApiClient {
             return Err(ApiError::ApiResponse(quota_response.msg).into());
         }
 
-        // Extract level
+        // Extract level from data.level (matching JS: quota.data?.level)
         let level = quota_response
+            .data
             .level
             .as_ref()
             .and_then(|l| PlanLevel::from_str(l));
 
-        // Extract token usage (TOKENS_LIMIT)
+        // Extract token usage (TOKENS_LIMIT with unit=3, matching JS: l.type === "TOKENS_LIMIT" && l.unit === 3)
         let token_usage = quota_response
             .data
             .limits
             .iter()
-            .find(|item| item.quota_type == "TOKENS_LIMIT")
+            .find(|item| item.quota_type == "TOKENS_LIMIT" && item.unit == 3)
             .map(|item| QuotaUsage {
                 used: item.current_value,
                 limit: item.usage,
@@ -141,12 +146,12 @@ impl GlmApiClient {
                 reset_at: item.next_reset_time.map(|ms| ms / 1000),
             });
 
-        // Extract weekly usage (unit=6)
+        // Extract weekly usage (TOKENS_LIMIT with unit=6, matching JS: l.type === "TOKENS_LIMIT" && l.unit === 6)
         let weekly_usage = quota_response
             .data
             .limits
             .iter()
-            .find(|item| item.unit == 6)
+            .find(|item| item.quota_type == "TOKENS_LIMIT" && item.unit == 6)
             .map(|item| QuotaUsage {
                 used: item.current_value,
                 limit: item.usage,
@@ -175,6 +180,12 @@ impl GlmApiClient {
     /// Fetch 5-hour call count and token usage from model-usage endpoint
     /// Uses reset_time to sync with quota window instead of simple now-5h
     fn fetch_model_usage(&self, reset_time_ms: Option<i64>) -> Result<Option<(i64, i64)>> {
+        // Without nextResetTime, a rolling window would include pre-reset stale data
+        let reset_ms = match reset_time_ms {
+            Some(ms) => ms,
+            None => return Ok(None),
+        };
+
         let url = format!("{}/monitor/usage/model-usage", self.base_url);
 
         // Use platform-appropriate timezone for API queries
@@ -183,24 +194,15 @@ impl GlmApiClient {
             Platform::Zhipu => chrono::FixedOffset::east_opt(8 * 3600).unwrap(),
             Platform::Zai => chrono::FixedOffset::east_opt(0).unwrap(),
         };
-        let now = chrono::Utc::now().with_timezone(&tz);
 
-        // Build query params synced with quota window
-        let (start_time, end_time) = if let Some(reset_ms) = reset_time_ms {
-            // Use reset time to calculate window: from (reset - 5h) to reset
-            let reset_time = chrono::DateTime::from_timestamp_millis(reset_ms)
-                .unwrap_or_else(|| chrono::Utc::now())
-                .with_timezone(&tz);
-            let start = reset_time - chrono::Duration::hours(5);
-            (start, reset_time)
-        } else {
-            // Fallback to simple 5h window if no reset time
-            let start = now - chrono::Duration::hours(5);
-            (start, now)
-        };
+        // Use reset time to calculate window: from (reset - 5h) to reset
+        let reset_time = chrono::DateTime::from_timestamp_millis(reset_ms)
+            .unwrap_or_else(|| chrono::Utc::now())
+            .with_timezone(&tz);
+        let start_time = reset_time - chrono::Duration::hours(5);
 
         let start_str = start_time.format("%Y-%m-%d %H:%M:%S").to_string();
-        let end_str = end_time.format("%Y-%m-%d %H:%M:%S").to_string();
+        let end_str = reset_time.format("%Y-%m-%d %H:%M:%S").to_string();
 
         let url_with_params = format!(
             "{}?startTime={}&endTime={}",

@@ -1,32 +1,9 @@
 use super::Segment;
-use crate::api::{GlmApiClient, PlanLevel, UsageStats};
+use crate::api::{GlmApiClient, UsageStats};
 use crate::config::{Config, InputData};
 use crate::core::segments::{SegmentData, SegmentStyle};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-
-/// Call count limits for different plans (prompts * 15)
-const OLD_PLAN_LIMITS: [(PlanLevel, i64); 3] = [
-    (PlanLevel::Lite, 1800),   // 120 * 15
-    (PlanLevel::Pro, 9000),    // 600 * 15
-    (PlanLevel::Max, 36000),   // 2400 * 15
-];
-
-const NEW_PLAN_5H_LIMITS: [(PlanLevel, i64); 3] = [
-    (PlanLevel::Lite, 1200),   // 80 * 15
-    (PlanLevel::Pro, 6000),    // 400 * 15
-    (PlanLevel::Max, 24000),   // 1600 * 15
-];
-
-const NEW_PLAN_WEEKLY_LIMITS: [(PlanLevel, i64); 3] = [
-    (PlanLevel::Lite, 6000),    // 400 * 15
-    (PlanLevel::Pro, 30000),    // 2000 * 15
-    (PlanLevel::Max, 120000),   // 8000 * 15
-];
-
-fn get_limit(limits: &[(PlanLevel, i64); 3], level: PlanLevel) -> i64 {
-    limits.iter().find(|(l, _)| *l == level).map(|(_, v)| *v).unwrap_or(9000)
-}
 
 /// Format token count with appropriate units (M/K/raw)
 #[allow(dead_code)]
@@ -104,8 +81,6 @@ impl GlmUsageSegment {
 
     fn format_stats(stats: &UsageStats) -> String {
         let mut parts = Vec::new();
-        let is_new_plan = stats.weekly_usage.is_some();
-        let level = stats.level.unwrap_or(PlanLevel::Pro);
 
         // Token usage with reset time
         if let Some(token) = &stats.token_usage {
@@ -117,21 +92,14 @@ impl GlmUsageSegment {
             parts.push(format!("🪙 {}% (⏰ {})", token.percentage, reset_time));
         }
 
-        // Call count with limit (5-hour)
+        // Call count (raw number only)
         if let Some(call_count) = stats.call_count {
-            let limit = if is_new_plan {
-                get_limit(&NEW_PLAN_5H_LIMITS, level)
-            } else {
-                get_limit(&OLD_PLAN_LIMITS, level)
-            };
-            parts.push(format!("📊 {}/{}", call_count, limit));
+            parts.push(format!("📊 {}", call_count));
         }
 
-        // Weekly usage (new plan only)
+        // Weekly usage (new plan only, percentage)
         if let Some(weekly) = &stats.weekly_usage {
-            let weekly_limit = get_limit(&NEW_PLAN_WEEKLY_LIMITS, level);
-            let weekly_used = (weekly.percentage as i64) * weekly_limit / 100;
-            parts.push(format!("📅 {}/{}", weekly_used, weekly_limit));
+            parts.push(format!("📅 {}%", weekly.percentage));
         }
 
         // MCP raw count
@@ -151,26 +119,10 @@ impl GlmUsageSegment {
         }
     }
 
-    fn get_color(stats: &UsageStats) -> SegmentStyle {
-        // Get maximum usage percentage
-        let max_pct = stats
-            .token_usage
-            .as_ref()
-            .map(|u| u.percentage)
-            .unwrap_or(0)
-            .max(stats.mcp_usage.as_ref().map(|u| u.percentage).unwrap_or(0))
-            .max(stats.weekly_usage.as_ref().map(|u| u.percentage).unwrap_or(0));
-
-        let color_256 = match max_pct {
-            0..=79 => Some(109),   // Green
-            80..=94 => Some(226),  // Yellow
-            95..=100 => Some(196), // Red
-            _ => Some(109),
-        };
-
+    fn get_color(_stats: &UsageStats) -> SegmentStyle {
         SegmentStyle {
             color: None,
-            color_256,
+            color_256: Some(109),
             bold: true,
         }
     }
@@ -196,15 +148,17 @@ impl Segment for GlmUsageSegment {
             }
         }
 
-        let stats = self.get_usage_stats(config)?;
+        let stats = self.get_usage_stats(config);
 
-        let text = Self::format_stats(&stats);
+        let text = match &stats {
+            Some(s) => Self::format_stats(s),
+            None => "🪙 0% · 📊 0 · ⚡ 0".to_string(),
+        };
 
-        if text.is_empty() {
-            return None;
-        }
-
-        let style = Self::get_color(&stats);
+        let style = match &stats {
+            Some(s) => Self::get_color(s),
+            None => SegmentStyle { color_256: Some(109), bold: true, color: None },
+        };
 
         Some(SegmentData { text, style })
     }
