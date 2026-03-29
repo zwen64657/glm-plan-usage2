@@ -15,12 +15,12 @@ Claude Code 状态栏插件，实时显示 GLM（智谱/ZAI）算力套餐使用
 - 仅 GLM 模型显示用量
 - 2 分钟缓存
 - **智能字符模式检测** - 自动选择 Emoji 或 ASCII 模式
-  - Windows 11/Linux/macOS → Emoji 模式 🪙📊⚡📅🌐⏰
+  - Windows 11 → Emoji 模式 🪙📊⚡📅🌐⏰
   - Windows 10 → ASCII 模式 $#k%MT（避免乱码）
 
 ## 显示示例
 
-### Emoji 模式（Windows 11/Linux/macOS）
+### Emoji 模式（Windows 11）
 
 老套餐（无周限量）：
 ```
@@ -106,7 +106,6 @@ Windows 下将路径中的 `~` 替换为 `C:/Users/你的用户名`。
 **自动检测：**
 - Windows 11（Build >= 22000）→ Emoji 模式
 - Windows 10（Build < 22000）→ ASCII 模式
-- Linux/macOS → Emoji 模式
 
 **手动强制覆盖（特殊情况下使用）：**
 

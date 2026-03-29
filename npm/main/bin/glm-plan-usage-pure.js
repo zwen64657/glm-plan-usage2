@@ -87,9 +87,8 @@ function request(url, token) {
 }
 
 function buildClient() {
-  // Support both GLM_* and ANTHROPIC_* env vars (GLM_* takes priority)
-  const token = getEnv("GLM_AUTH_TOKEN") || getEnv("ANTHROPIC_AUTH_TOKEN");
-  const baseUrl = getEnv("GLM_BASE_URL") || getEnv("ANTHROPIC_BASE_URL") || "https://open.bigmodel.cn/api/anthropic";
+  const token = getEnv("ANTHROPIC_AUTH_TOKEN");
+  const baseUrl = getEnv("ANTHROPIC_BASE_URL") || "https://open.bigmodel.cn/api/anthropic";
   const apiUrl = baseUrl.replace(/\/api\/anthropic/, "/api").replace(/\/anthropic$/, "");
 
   // Detect platform and timezone offset (in hours)
@@ -201,9 +200,9 @@ function format(stats, charMode) {
     lightning: "⚡"
   };
 
-  // When no stats available, show zero usage
+  // When no stats available, show placeholder format
   if (!stats) {
-    return `${color256(109)}\x1b[1m${icons.token} 0% · ${icons.chart} 0 · ${icons.lightning} 0${reset()}`;
+    return `${color256(109)}\x1b[1m${icons.token} % (${icons.clock} --:--) · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
   }
 
   const parts = [];
@@ -280,12 +279,10 @@ async function main() {
   }
 
   const client = buildClient();
-  log(`token: ${client.token ? "present" : "MISSING"}`);
 
   let stats = null;
   if (client.token) {
     stats = await fetchStats(client);
-    log(`stats: ${stats ? "ok" : "null"}`);
   }
 
   const output = format(stats, charMode);

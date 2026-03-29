@@ -31,12 +31,10 @@ struct QuotaLimitDataWithLevel {
 impl GlmApiClient {
     /// Create client from environment variables
     pub fn from_env() -> Result<Self> {
-        let token = std::env::var("GLM_AUTH_TOKEN")
-            .or_else(|_| std::env::var("ANTHROPIC_AUTH_TOKEN"))
-            .map_err(|_| ApiError::MissingEnvVar("GLM_AUTH_TOKEN or ANTHROPIC_AUTH_TOKEN".to_string()))?;
+        let token = std::env::var("ANTHROPIC_AUTH_TOKEN")
+            .map_err(|_| ApiError::MissingEnvVar("ANTHROPIC_AUTH_TOKEN".to_string()))?;
 
-        let base_url = std::env::var("GLM_BASE_URL")
-            .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
+        let base_url = std::env::var("ANTHROPIC_BASE_URL")
             .unwrap_or_else(|_| "https://open.bigmodel.cn/api/anthropic".to_string());
 
         let platform =

@@ -159,23 +159,26 @@ impl Segment for GlmUsageSegment {
 
         let stats = self.get_usage_stats(config);
 
-        let text = match &stats {
-            Some(s) => Self::format_stats(s, self.char_mode),
+        let (text, style) = match &stats {
+            Some(s) => {
+                (Self::format_stats(s, self.char_mode), Self::get_color(s))
+            }
             None => {
-                // Fallback display
-                let (token_icon, _clock_icon, chart_icon, _, _, lightning_icon) = match self.char_mode {
+                // Placeholder format when no data
+                let (token_icon, clock_icon, chart_icon, _calendar_icon, globe_icon, lightning_icon) = match self.char_mode {
                     CharMode::Emoji => ("🪙", "⏰", "📊", "📅", "🌐", "⚡"),
                     CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
                 };
-                format!("{} 0% · {} 0 · {} 0", token_icon, chart_icon, lightning_icon)
+                let text = format!("{} % ({} --:--) · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon);
+                let style = SegmentStyle { color_256: Some(109), bold: true, color: None };
+                (text, style)
             }
         };
 
-        let style = match &stats {
-            Some(s) => Self::get_color(s),
-            None => SegmentStyle { color_256: Some(109), bold: true, color: None },
-        };
-
-        Some(SegmentData { text, style })
+        if text.is_empty() {
+            None
+        } else {
+            Some(SegmentData { text, style })
+        }
     }
 }

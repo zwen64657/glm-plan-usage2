@@ -15,12 +15,12 @@ Claude Code status bar plugin that displays real-time GLM (ZHIPU/ZAI) usage stat
 - Only show usage for GLM models
 - 2-minute cache
 - **Smart character mode detection** - Automatically choose Emoji or ASCII mode
-  - Windows 11/Linux/macOS → Emoji mode 🪙📊⚡📅🌐⏰
+  - Windows 11 → Emoji mode 🪙📊⚡📅🌐⏰
   - Windows 10 → ASCII mode $#k%MT (to avoid garbled text)
 
 ## Display Example
 
-### Emoji Mode (Windows 11/Linux/macOS)
+### Emoji Mode (Windows 11)
 
 Old plan (no weekly quota):
 ```
@@ -106,7 +106,6 @@ The program automatically detects the operating system and selects the appropria
 **Automatic Detection:**
 - Windows 11 (Build >= 22000) → Emoji mode
 - Windows 10 (Build < 22000) → ASCII mode
-- Linux/macOS → Emoji mode
 
 **Manual Override (use in special cases):**
 
@@ -116,18 +115,12 @@ If you want to manually specify the character mode, set the following environmen
 ```powershell
 # Windows PowerShell
 $env:GLM_FORCE_EMOJI="1"
-
-# Linux/macOS
-export GLM_FORCE_EMOJI=1
 ```
 
 **Force ASCII Mode:**
 ```powershell
 # Windows PowerShell
 $env:GLM_FORCE_ASCII="1"
-
-# Linux/macOS
-export GLM_FORCE_ASCII=1
 ```
 
 **When to use manual configuration:**

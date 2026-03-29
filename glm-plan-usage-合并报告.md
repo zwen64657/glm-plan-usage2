@@ -12,6 +12,7 @@
 4. [调用次数显示](#4-调用次数显示)
 5. [纯 Node.js 实现](#5-纯-nodejs-实现)
 6. [Rust/JS 版本统一与 TLS 修复](#6-rustjs-版本统一与-tls-修复)
+7. [环境变量与零值显示修正（2026-03-29）](#7-环境变量与零值显示修正2026-03-29)
 
 ---
 
@@ -1613,3 +1614,158 @@ $ 5% (T 23:00) · # 93 · M 0/1000 · k 3.38M
 - **开箱即用**：无需配置，自动选择最适合的模式
 
 此方案同时修改了 Rust 和 Node.js 两个版本，确保功能一致性。
+
+
+---
+
+## 7. 环境变量与零值显示修正（2026-03-29）
+
+### 修改时间
+2026-03-29
+
+### 修改目的
+
+#### 7.1 环境变量修正
+
+**问题描述**：
+第1节中记录了 `ANTHROPIC_* → GLM_*` 的修改，但实际需求是反过来——只使用 `ANTHROPIC_*` 环境变量，删除 `GLM_*` 变量。
+
+**修改内容**：
+
+| 变量 | 操作 |
+|------|------|
+| `GLM_AUTH_TOKEN` | 删除 |
+| `GLM_BASE_URL` | 删除 |
+| `ANTHROPIC_AUTH_TOKEN` | 保留（必需） |
+| `ANTHROPIC_BASE_URL` | 保留（可选，默认 `https://open.bigmodel.cn/api/anthropic`） |
+
+#### 7.2 零值显示修正
+
+**问题描述**：
+之前第7节中改为"显示零值占位 `🪙 0% · 📊 0 · ⚡ 0`"，但这多余了，应该改回不显示内容。
+
+**修改内容**：
+
+| 版本 | 修改前 | 修改后 |
+|------|--------|--------|
+| Rust | `🪙 0% · 📊 0 · ⚡ 0` | `🪙 % (⏰ --:--) · 📊 0 · 🌐 / · ⚡` |
+| JS | `🪙 0% · 📊 0 · ⚡ 0` | `🪙 % (⏰ --:--) · 📊 0 · 🌐 / · ⚡` |
+
+**说明**：无数据时显示占位符格式，保留图标和结构，但数字使用占位符（`%`、`--:--`、`/` 等）。
+
+### 代码变更
+
+#### 7.2.1 Rust 版本 (src/api/client.rs)
+
+```rust
+// 修改前
+let token = std::env::var("GLM_AUTH_TOKEN")
+    .or_else(|_| std::env::var("ANTHROPIC_AUTH_TOKEN"))
+    .map_err(|_| ApiError::MissingEnvVar("GLM_AUTH_TOKEN or ANTHROPIC_AUTH_TOKEN".to_string()))?;
+
+let base_url = std::env::var("GLM_BASE_URL")
+    .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
+    .unwrap_or_else(|_| "https://open.bigmodel.cn/api/anthropic".to_string());
+
+// 修改后
+let token = std::env::var("ANTHROPIC_AUTH_TOKEN")
+    .map_err(|_| ApiError::MissingEnvVar("ANTHROPIC_AUTH_TOKEN".to_string()))?;
+
+let base_url = std::env::var("ANTHROPIC_BASE_URL")
+    .unwrap_or_else(|_| "https://open.bigmodel.cn/api/anthropic".to_string());
+```
+
+#### 7.2.2 Rust 版本 (src/core/segments/glm_usage.rs)
+
+```rust
+// 修改前
+let text = match &stats {
+    Some(s) => Self::format_stats(s, self.char_mode),
+    None => {
+        let (token_icon, _clock_icon, chart_icon, _, _, lightning_icon) = match self.char_mode {
+            CharMode::Emoji => ("🪙", "⏰", "📊", "📅", "🌐", "⚡"),
+            CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
+        };
+        format!("{} 0% · {} 0 · {} 0", token_icon, chart_icon, lightning_icon)
+    }
+};
+
+let style = match &stats {
+    Some(s) => Self::get_color(s),
+    None => SegmentStyle { color_256: Some(109), bold: true, color: None },
+};
+
+Some(SegmentData { text, style })
+
+// 修改后
+let (text, style) = match &stats {
+    Some(s) => {
+        (Self::format_stats(s, self.char_mode), Self::get_color(s))
+    }
+    None => {
+        // Placeholder format when no data
+        let (token_icon, clock_icon, chart_icon, _calendar_icon, globe_icon, lightning_icon) = match self.char_mode {
+            CharMode::Emoji => ("🪙", "⏰", "📊", "📅", "🌐", "⚡"),
+            CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
+        };
+        let text = format!("{} % ({} --:--) · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon);
+        let style = SegmentStyle { color_256: Some(109), bold: true, color: None };
+        (text, style)
+    }
+};
+
+if text.is_empty() {
+    None
+} else {
+    Some(SegmentData { text, style })
+}
+```
+
+#### 7.2.3 JS 版本 (npm/main/bin/glm-plan-usage-pure.js)
+
+```javascript
+// 修改前
+function buildClient() {
+  // Support both GLM_* and ANTHROPIC_* env vars (GLM_* takes priority)
+  const token = getEnv("GLM_AUTH_TOKEN") || getEnv("ANTHROPIC_AUTH_TOKEN");
+  const baseUrl = getEnv("GLM_BASE_URL") || getEnv("ANTHROPIC_BASE_URL") || "https://open.bigmodel.cn/api/anthropic";
+  // ...
+}
+
+// 修改后
+function buildClient() {
+  const token = getEnv("ANTHROPIC_AUTH_TOKEN");
+  const baseUrl = getEnv("ANTHROPIC_BASE_URL") || "https://open.bigmodel.cn/api/anthropic";
+  // ...
+}
+```
+
+```javascript
+// 修改前
+if (!stats) {
+  return `${color256(109)}\x1b[1m${icons.token} 0% · ${icons.chart} 0 · ${icons.lightning} 0${reset()}`;
+}
+
+// 修改后
+if (!stats) {
+  return `${color256(109)}\x1b[1m${icons.token} % (${icons.clock} --:--) · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
+}
+```
+
+### 测试结果
+
+#### 有数据时
+```
+🪙 6% (⏰ 16:43) · 📊 135 · 🌐 0/1000 · ⚡ 5.17M
+```
+
+#### 无数据时
+```
+🪙 % (⏰ --:--) · 📊 0 · 🌐 / · ⚡
+```
+
+### 总结
+
+1. **环境变量统一**：只使用 `ANTHROPIC_AUTH_TOKEN` 和 `ANTHROPIC_BASE_URL`，删除 `GLM_*` 变量
+2. **零值显示优化**：无数据时显示占位符格式而非完全空白，保留界面结构
+3. **双版本同步**：Rust 和 JS 版本修改保持一致
