@@ -1618,6 +1618,88 @@ $ 5% (T 23:00) · # 93 · M 0/1000 · k 3.38M
 
 ---
 
+## 9. GLM 前缀显示（2026-03-30）
+
+### 修改时间
+2026-03-30
+
+### 修改目的
+在状态栏输出前面添加 "GLM " 前缀，便于在多平台同时使用时快速区分当前显示的是哪个平台的用量。
+
+### 修改内容
+
+在 Rust 和 JS 两个版本的输出前统一添加 `GLM ` 前缀。
+
+#### 9.1 Rust 版本 (src/core/segments/glm_usage.rs)
+
+**`format_stats` 函数**：
+```rust
+// 修改前
+parts.join(" · ")
+
+// 修改后
+format!("GLM {}", parts.join(" · "))
+```
+
+**placeholder 输出**（无数据时）：
+```rust
+// 修改前
+format!("{} % ({} --:--) · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon)
+
+// 修改后
+format!("GLM {} % ({} --:--) · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon)
+```
+
+#### 9.2 JS 版本 (npm/main/bin/glm-plan-usage-pure.js)
+
+**有数据时**：
+```javascript
+// 修改前
+return `${color256(109)}\x1b[1m${parts.join(" · ")}${reset()}`;
+
+// 修改后
+return `${color256(109)}\x1b[1mGLM ${parts.join(" · ")}${reset()}`;
+```
+
+**无数据时（placeholder）**：
+```javascript
+// 修改前
+return `${color256(109)}\x1b[1m${icons.token} % (${icons.clock} --:--) · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
+
+// 修改后
+return `${color256(109)}\x1b[1mGLM ${icons.token} % (${icons.clock} --:--) · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
+```
+
+### 最终效果
+
+**有数据时：**
+```
+GLM 🪙 4% (⏰ 14:31) · 📊 101 · 🌐 0/1000 · ⚡ 4.72M
+```
+
+**无数据时：**
+```
+GLM 🪙 % (⏰ --:--) · 📊 0 · 🌐 / · ⚡
+```
+
+**ASCII 模式（Windows 10）：**
+```
+GLM $ 4% (T 14:31) · # 101 · M 0/1000 · k 4.72M
+```
+
+### 编译与部署
+
+```powershell
+cd "C:\Users\18773\Desktop\glm-plan-usage-community"
+cargo build --release
+```
+
+编译成功后替换部署文件：
+- Rust 二进制：`target/release/glm-plan-usage` → `~/.claude/glm-plan-usage/`
+- JS 文件：`npm/main/bin/glm-plan-usage-pure.js` → `~/.claude/glm-plan-usage/`
+
+---
+
 ## 7. 环境变量与零值显示修正（2026-03-29）
 
 ### 修改时间

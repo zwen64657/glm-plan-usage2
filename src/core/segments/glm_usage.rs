@@ -124,7 +124,7 @@ impl GlmUsageSegment {
         if parts.is_empty() {
             String::new()
         } else {
-            parts.join(" · ")
+            format!("GLM {}", parts.join(" · "))
         }
     }
 
@@ -169,7 +169,7 @@ impl Segment for GlmUsageSegment {
                     CharMode::Emoji => ("🪙", "⏰", "📊", "📅", "🌐", "⚡"),
                     CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
                 };
-                let text = format!("{} % ({} --:--) · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon);
+                let text = format!("GLM {} % ({} --:--) · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon);
                 let style = SegmentStyle { color_256: Some(109), bold: true, color: None };
                 (text, style)
             }

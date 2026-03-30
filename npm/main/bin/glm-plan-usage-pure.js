@@ -202,7 +202,7 @@ function format(stats, charMode) {
 
   // When no stats available, show placeholder format
   if (!stats) {
-    return `${color256(109)}\x1b[1m${icons.token} % (${icons.clock} --:--) · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
+    return `${color256(109)}\x1b[1mGLM ${icons.token} % (${icons.clock} --:--) · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
   }
 
   const parts = [];
@@ -229,7 +229,7 @@ function format(stats, charMode) {
 
   if (parts.length === 0) return "";
 
-  return `${color256(109)}\x1b[1m${parts.join(" · ")}${reset()}`;
+  return `${color256(109)}\x1b[1mGLM ${parts.join(" · ")}${reset()}`;
 }
 
 // Main
