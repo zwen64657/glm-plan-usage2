@@ -2261,3 +2261,44 @@ MiniMax 🪙 12% (⏰ 15:00) · 📊 69/600 · 📅 1%
 | `src/api/minimax_client.rs` | Cookie 认证、用量计算修复 |
 | `src/core/segments/minimax_usage.rs` | 毫秒时间戳转秒 |
 | `npm/main/bin/glm-plan-usage-pure.js` | Cookie 认证、用量计算修复 |
+
+---
+
+## 11. TLS 证书兼容性修复（2026-04-01）
+
+### 修改时间
+2026-04-01
+
+### 问题背景
+Rust 二进制文件使用 `ureq` + `rustls` + `webpki-roots` 进行 HTTPS 请求。`webpki-roots` 将 Mozilla 根证书列表硬编码进二进制文件，不包含 TrustAsia 等国内 CA，导致访问使用这些 CA 签发证书的服务器时 TLS 握手失败，请求静默无输出。
+
+之前曾尝试切换到 `native-tls` feature（commit `ef384a9`），但在 Windows 上因 SChannel 链接不完整导致 `no TLS backend is configured` 错误，最终回退到 rustls。
+
+### 解决方案
+启用 `ureq` 的 `native-certs` feature，让 rustls 从操作系统证书存储加载根证书，而非使用硬编码的 webpki-roots。
+
+**`Cargo.toml` 变更：**
+```toml
+# 修改前
+ureq = { version = "2.10", features = ["json"] }
+
+# 修改后
+ureq = { version = "2.10", features = ["json", "native-certs"] }
+```
+
+### 原理
+| 对比项 | 修改前（webpki-roots） | 修改后（native-certs） |
+|--------|----------------------|----------------------|
+| TLS 引擎 | rustls | rustls（不变） |
+| 证书来源 | 硬编码 Mozilla 根证书 | 操作系统证书存储 |
+| Windows | 不信任 TrustAsia 等 | 通过 SChannel 信任系统所有 CA |
+| macOS | 不信任本地安装的 CA | 通过 Keychain 信任 |
+| Linux | 不信任本地 CA | 读取 `/etc/ssl/certs` |
+| 证书更新 | 需重新编译 | 跟随系统更新 |
+
+### 相关文件
+
+| 文件 | 修改内容 |
+|------|---------|
+| `Cargo.toml` | ureq features 添加 `"native-certs"` |
+| `Cargo.lock` | 自动引入 `rustls-native-certs v0.7.3`、`schannel`、`rustls-pemfile` 等依赖 |
