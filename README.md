@@ -4,7 +4,7 @@
 
 Claude Code 状态栏插件，实时显示 GLM / MiniMax / Kimi 多平台算力套餐使用量。
 
-> **提示：** GLM 和 MiniMax 已测试通过，Kimi 未实际测试。优先使用 Node.js 版本，Rust 版本在某些环境下可能出现不兼容。
+> **提示：** GLM 和 MiniMax 已测试通过，Kimi 未实际测试。
 
 ## 功能
 

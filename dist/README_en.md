@@ -1,112 +1,111 @@
 # glm-plan-usage
 
-[简体中文](README.md) | English
+English | [简体中文](README.md)
 
-A Claude Code plugin that displays GLM (ZHIPU/ZAI) coding plan usage statistics in the status bar.
+Claude Code status bar plugin that displays real-time GLM / MiniMax / Kimi multi-platform usage statistics.
 
-![demo](screenshots/demo.png)
+> **Note:** GLM and MiniMax have been tested successfully. Kimi has not been tested yet.
 
 ## Features
 
-- 📊 **Real-time Usage Tracking**: Display Token and MCP usage percentages
-- 🎨 **Color-coded Warnings**: Green (0-79%), Yellow (80-94%), Red (95-100%)
-- ⚡ **Smart Caching**: 5-minute cache to reduce API calls
-- 🔍 **Auto Platform Detection**: Supports ZAI and ZHIPU platforms
-- 🌍 **Cross-platform Support**: Works on Windows, macOS, and Linux
+- 🔋 5-hour Token quota usage percentage + reset time
+- 📊 5-hour model call count
+- ⚡ 5-hour Token consumption
+- 📅 Weekly quota percentage (new plans)
+- 🌐 30-day MCP quota
+- Auto-detect ZHIPU (bigmodel.cn), ZAI (api.z.ai), MiniMax (minimaxi.com), Kimi (kimi.com) platforms
+- Auto-identify GLM / MiniMax / Kimi models; non-supported models are hidden
+- 2-minute cache
+- **Smart character mode detection** - Automatically choose Emoji or ASCII mode
+  - Windows 11 → Emoji mode 🔋📊⚡📅🌐⏰
+  - Windows 10 → ASCII mode $#k%MT (to avoid garbled text)
+
+## Display Example
+
+### GLM Platform
+
+Old plan (no weekly quota):
+```
+GLM 🔋 5% · ⏰ 23:00 · 📊 93 · 🌐 0/1000 · ⚡ 3.38M
+```
+
+New plan (with weekly quota):
+```
+GLM 🔋 5% · ⏰ 23:00 · 📊 93 · 📅 25% · 🌐 0/1000 · ⚡ 3.38M
+```
+
+### MiniMax Platform
+
+```
+MiniMax 🔋 5% · ⏰ 23:00 · 📊 93/1200 · 📅 25%
+```
+
+### Kimi Platform
+
+```
+Kimi 🔋 12% · ⏰ 18:00 · 📅 8%
+```
+
+### ASCII Mode (Windows 10)
+
+GLM old plan (no weekly quota):
+```
+GLM $ 5% · T 23:00 · # 93 · M 0/1000 · k 3.38M
+```
+
+GLM new plan (with weekly quota):
+```
+GLM $ 5% · T 23:00 · # 93 · % 25% · M 0/1000 · k 3.38M
+```
+
+MiniMax:
+```
+MiniMax $ 5% · T 23:00 · # 93/1200 · % 25%
+```
+
+Kimi:
+```
+Kimi $ 12% · T 18:00 · % 8%
+```
+
+**Character Mapping:**
+- 🔋 → $ (Token quota)
+- 📊 → # (Call count)
+- ⚡ → k (Token consumption)
+- 📅 → % (Weekly quota)
+- 🌐 → M (MCP quota)
+- ⏰ → T (Reset time)
+
+## Two Versions
+
+| Version | File Location | Description |
+|---------|---------------|-------------|
+| Rust | `target/release/glm-plan-usage` | Compiled binary |
+| Node.js | `npm/main/bin/glm-plan-usage-pure.js` | Pure JS implementation, no compilation needed |
 
 ## Installation
 
-### Install via npm (Recommended)
+### Node.js Version (Recommended)
 
-```bash
-npm install -g @jukanntenn/glm-plan-usage
+Place `npm/main/bin/glm-plan-usage-pure.js` in `~/.claude/glm-plan-usage/` directory.
+
+Add to Claude Code `settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node ~/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
 ```
 
-For users experiencing network issues, use npm mirror for faster installation:
+### Rust Version
 
-```bash
-npm install -g @jukanntenn/glm-plan-usage --registry https://registry.npmmirror.com
-```
+Place the compiled `target/release/glm-plan-usage` file in `~/.claude/glm-plan-usage/` directory.
 
-Update:
-
-```bash
-npm update -g @jukanntenn/glm-plan-usage
-```
-
-<details>
-<summary>Manual Installation (click to expand)</summary>
-
-Or download manually from [Releases](https://github.com/jukanntenn/glm-plan-usage/releases):
-
-#### Linux
-
-#### Option 1: Dynamically Linked (Recommended)
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-linux-x64.tar.gz
-tar -xzf glm-plan-usage-linux-x64.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-*System requirements: Ubuntu 22.04+, CentOS 9+, Debian 11+, RHEL 9+ (glibc 2.35+)*
-
-#### Option 2: Statically Linked (Universal Compatibility)
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-linux-x64-musl.tar.gz
-tar -xzf glm-plan-usage-linux-x64-musl.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-*Works on any Linux distribution (statically linked, no dependencies)*
-
-#### macOS (Intel)
-
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-macos-x64.tar.gz
-tar -xzf glm-plan-usage-macos-x64.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-
-#### macOS (Apple Silicon)
-
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-macos-arm64.tar.gz
-tar -xzf glm-plan-usage-macos-arm64.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-
-#### Windows
-
-```powershell
-# Create directory and download
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\glm-plan-usage"
-Invoke-WebRequest -Uri "https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-windows-x64.zip" -OutFile "glm-plan-usage-windows-x64.zip"
-Expand-Archive -Path "glm-plan-usage-windows-x64.zip" -DestinationPath "."
-Move-Item "glm-plan-usage.exe" "$env:USERPROFILE\.claude\glm-plan-usage\"
-```
-
-</details>
-
-### Build from Source
-
-```bash
-git clone https://github.com/jukanntenn/glm-plan-usage.git
-cd glm-plan-usage
-cargo build --release
-cp target/release/glm-plan-usage ~/.claude/glm-plan-usage/
-```
-
-## Configuration
-
-Add to your Claude Code `settings.json`:
-
-**Linux/macOS:**
+Add to Claude Code `settings.json`:
 
 ```json
 {
@@ -118,156 +117,81 @@ Add to your Claude Code `settings.json`:
 }
 ```
 
-**Windows:**
+### Windows Paths
 
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "%USERPROFILE%\\.claude\\glm-plan-usage\\glm-plan-usage.exe",
-    "padding": 0
-  }
-}
-```
-
-Restart Claude Code, the status bar will display:
-
-```text
-🪙 32% (⌛️ 1:44) · 🌐 20/100
-   │  │           │     └─ MCP usage (used/total)
-   │  │           └─ Separator
-   │  └─ Token countdown (hours:minutes)
-   └─ Token usage percentage
-
-```
-
-If you are already using [CCometixLine](https://github.com/Haleclipse/CCometixLine) or other similar plugins, you can create scripts to combine them:
-
-**Linux/macOS:**
-
-`~/.claude/status-line-combined.sh` script example:
-
-```bash
-#!/bin/bash
-
-# Read JSON input from stdin
-INPUT=$(cat)
-
-# Run both commands with the same input
-CCLINE_OUTPUT=$(echo "$INPUT" | ~/.claude/ccline/ccline 2>/dev/null)
-GLM_OUTPUT=$(echo "$INPUT" | ~/.claude/glm-plan-usage/glm-plan-usage 2>/dev/null)
-
-# Build combined output
-OUTPUT=""
-
-# Add ccline output if available
-if [ -n "$CCLINE_OUTPUT" ]; then
-    OUTPUT="$CCLINE_OUTPUT"
-fi
-
-# Add glm-plan-usage output if available
-if [ -n "$GLM_OUTPUT" ]; then
-    if [ -n "$OUTPUT" ]; then
-        OUTPUT="$OUTPUT | $GLM_OUTPUT"
-    else
-        OUTPUT="$GLM_OUTPUT"
-    fi
-fi
-
-# Print combined output
-if [ -n "$OUTPUT" ]; then
-    printf "%s" "$OUTPUT"
-fi
-```
-
-Add execution permission: `chmod +x ~/.claude/status-line-combined.sh`
-
-Configure in Claude Code `settings.json`:
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/status-line-combined.sh",
-    "padding": 0
-  }
-}
-```
-
-**Windows (PowerShell):**
-
-`%USERPROFILE%\.claude\status-line-combined.ps1` script example:
-
-```powershell
-# Read JSON input from stdin
-$InputString = [Console]::In.ReadToEnd()
-
-# Run both commands with the same input
-$CclineOutput = $InputString | & "$env:USERPROFILE\.claude\ccline\ccline.exe" 2>$null
-$GlmOutput = $InputString | & "$env:USERPROFILE\.claude\glm-plan-usage\glm-plan-usage.exe" 2>$null
-
-# Build combined output
-$Output = ""
-
-# Add ccline output if available
-if (-not [string]::IsNullOrEmpty($CclineOutput)) {
-    $Output = $CclineOutput
-}
-
-# Add glm-plan-usage output if available
-if (-not [string]::IsNullOrEmpty($GlmOutput)) {
-    if (-not [string]::IsNullOrEmpty($Output)) {
-        $Output = "$Output | $GlmOutput"
-    } else {
-        $Output = $GlmOutput
-    }
-}
-
-# Print combined output
-if (-not [string]::IsNullOrEmpty($Output)) {
-    Write-Host -NoNewline $Output
-}
-```
-
-Grant script execution permission in PowerShell: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-
-Configure in Claude Code `settings.json`:
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "powershell.exe -File %USERPROFILE%\\.claude\\status-line-combined.ps1",
-    "padding": 0
-  }
-}
-```
+On Windows, replace `~` with `C:/Users/YourUsername` in the paths.
 
 ## Environment Variables
 
-**Note:** These variables are typically already configured in your Claude Code `settings.json`. If not, you can set them manually:
+### GLM Platform
 
-**Linux/macOS:**
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_AUTH_TOKEN` | Yes | ZHIPU API Key |
+| `ANTHROPIC_BASE_URL` | No | Default: `https://open.bigmodel.cn/api/anthropic` |
 
-```bash
-export ANTHROPIC_AUTH_TOKEN="your-token-here"
-export ANTHROPIC_BASE_URL="https://open.bigmodel.cn/api/anthropic"
-```
+### MiniMax Platform
 
-**Windows (Command Prompt):**
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_AUTH_TOKEN` | Yes | MiniMax API Key |
+| `ANTHROPIC_BASE_URL` | Yes | Set to `https://api.minimaxi.com/anthropic` |
+| `HERTZ_SESSION` | Yes | MiniMax Cookie (required for usage query) |
+
+MiniMax usage query API requires Cookie authentication; API Key is not supported. To obtain:
+
+1. Log in to MiniMax Developer Platform
+2. Go to **Account Management → Plan Management → Token Plan**
+3. Open DevTools (F12) → Network tab → search for `remains`
+4. Click the request → check request headers for Cookie → find `HERTZ-SESSION=xxx`
+5. Copy the value after `=`
+
+Set environment variable:
 
 ```cmd
-set ANTHROPIC_AUTH_TOKEN=your-token-here
-set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic
+setx HERTZ_SESSION "the_copied_value"
 ```
 
-**Windows (PowerShell):**
+Or via System Settings: Win+R → `sysdm.cpl` → Advanced → Environment Variables → New user variable.
 
+> **Note:** The Cookie expires periodically. After setting, restart your terminal/droid for it to take effect.
+
+### Kimi Platform
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | Yes | Kimi API Key |
+| `ANTHROPIC_BASE_URL` | Yes | Set to Kimi's API URL |
+
+## Configuration Options
+
+### Character Mode (Optional)
+
+The program automatically detects the operating system and selects the appropriate character mode. No manual configuration is needed.
+
+**Automatic Detection:**
+- Windows 11 (Build >= 22000) → Emoji mode
+- Windows 10 (Build < 22000) → ASCII mode
+
+**Manual Override (use in special cases):**
+
+If you want to manually specify the character mode, set the following environment variables:
+
+**Force Emoji Mode:**
 ```powershell
-$env:ANTHROPIC_AUTH_TOKEN="your-token-here"
-$env:ANTHROPIC_BASE_URL="https://open.bigmodel.cn/api/anthropic"
+# Windows PowerShell
+$env:GLM_FORCE_EMOJI="1"
 ```
 
-## License
+**Force ASCII Mode:**
+```powershell
+# Windows PowerShell
+$env:GLM_FORCE_ASCII="1"
+```
 
-MIT
+**When to use manual configuration:**
+- Your terminal actually supports emoji, but auto-detection incorrectly identifies it as unsupported
+- Your terminal doesn't support emoji and displays garbled text
+- You want to compare the display of different modes
+
+**Note:** In most cases, manual configuration is not needed. Auto-detection works well enough.

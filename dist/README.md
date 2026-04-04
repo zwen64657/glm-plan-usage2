@@ -1,112 +1,111 @@
 # glm-plan-usage
 
-简体中文 | [English](README_en.md)
+[English](README_en.md)
 
-一个用于 Claude Code 的插件，在状态栏显示 GLM（智谱/ZAI）算力套餐的使用量统计。
+Claude Code 状态栏插件，实时显示 GLM / MiniMax / Kimi 多平台算力套餐使用量。
 
-![demo](screenshots/demo.png)
+> **提示：** GLM 和 MiniMax 已测试通过，Kimi 未实际测试。
 
-## 功能特性
+## 功能
 
-- 📊 **实时使用量追踪**: 显示 Token 和 MCP 使用百分比
-- 🎨 **颜色警告提示**: 绿色 (0-79%)、黄色 (80-94%)、红色 (95-100%)
-- ⚡ **智能缓存**: 5 分钟缓存减少 API 调用
-- 🔍 **自动平台检测**: 支持 ZAI 和智谱平台
-- 🌍 **跨平台支持**: 支持 Windows、macOS 和 Linux
+- 🔋 5 小时 Token 配额使用率 + 重置时间
+- 📊 5 小时模型调用次数
+- ⚡ 5 小时 Token 消耗总量
+- 📅 周限量百分比（新套餐）
+- 🌐 30 天 MCP 配额
+- 自动检测智谱（bigmodel.cn）、ZAI（api.z.ai）、MiniMax（minimaxi.com）、Kimi（kimi.com）平台
+- 自动识别 GLM / MiniMax / Kimi 模型，非支持模型不显示
+- 2 分钟缓存
+- **智能字符模式检测** - 自动选择 Emoji 或 ASCII 模式
+  - Windows 11 → Emoji 模式 🔋📊⚡📅🌐⏰
+  - Windows 10 → ASCII 模式 $#k%MT（避免乱码）
+
+## 显示示例
+
+### GLM 平台
+
+老套餐（无周限量）：
+```
+GLM 🔋 5% · ⏰ 23:00 · 📊 93 · 🌐 0/1000 · ⚡ 3.38M
+```
+
+新套餐（有周限量）：
+```
+GLM 🔋 5% · ⏰ 23:00 · 📊 93 · 📅 25% · 🌐 0/1000 · ⚡ 3.38M
+```
+
+### MiniMax 平台
+
+```
+MiniMax 🔋 5% · ⏰ 23:00 · 📊 93/1200 · 📅 25%
+```
+
+### Kimi 平台
+
+```
+Kimi 🔋 12% · ⏰ 18:00 · 📅 8%
+```
+
+### ASCII 模式（Windows 10）
+
+GLM 老套餐（无周限量）：
+```
+GLM $ 5% · T 23:00 · # 93 · M 0/1000 · k 3.38M
+```
+
+GLM 新套餐（有周限量）：
+```
+GLM $ 5% · T 23:00 · # 93 · % 25% · M 0/1000 · k 3.38M
+```
+
+MiniMax：
+```
+MiniMax $ 5% · T 23:00 · # 93/1200 · % 25%
+```
+
+Kimi：
+```
+Kimi $ 12% · T 18:00 · % 8%
+```
+
+**字符映射：**
+- 🔋 → $ (Token 配额)
+- 📊 → # (调用次数)
+- ⚡ → k (Token 消耗)
+- 📅 → % (周限量)
+- 🌐 → M (MCP 配额)
+- ⏰ → T (重置时间)
+
+## 两个版本
+
+| 版本 | 文件位置 | 说明 |
+|------|----------|------|
+| Rust | `target/release/glm-plan-usage` | 编译后的二进制文件 |
+| Node.js | `npm/main/bin/glm-plan-usage-pure.js` | 纯 JS 实现，无需编译 |
 
 ## 安装
 
-### 通过 npm 安装（推荐）
+### Node.js 版本（推荐）
 
-```bash
-npm install -g @jukanntenn/glm-plan-usage
+将 `npm/main/bin/glm-plan-usage-pure.js` 放到 `~/.claude/glm-plan-usage/` 目录。
+
+在 Claude Code 的 `settings.json` 中配置：
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node ~/.claude/glm-plan-usage/glm-plan-usage-pure.js",
+    "padding": 0
+  }
+}
 ```
 
-如遇网络问题，可使用 npm 镜像加速安装：
+### Rust 版本
 
-```bash
-npm install -g @jukanntenn/glm-plan-usage --registry https://registry.npmmirror.com
-```
+将编译好的 `target/release/glm-plan-usage` 文件放到 `~/.claude/glm-plan-usage/` 目录。
 
-更新：
-
-```bash
-npm update -g @jukanntenn/glm-plan-usage
-```
-
-<details>
-<summary>手动安装（点击展开）</summary>
-
-或者从 [Releases](https://github.com/jukanntenn/glm-plan-usage/releases) 手动下载：
-
-#### Linux
-
-#### 选项 1: 动态链接版本（推荐）
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-linux-x64.tar.gz
-tar -xzf glm-plan-usage-linux-x64.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-*系统要求: Ubuntu 22.04+, CentOS 9+, Debian 11+, RHEL 9+ (glibc 2.35+)*
-
-#### 选项 2: 静态链接版本（通用兼容）
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-linux-x64-musl.tar.gz
-tar -xzf glm-plan-usage-linux-x64-musl.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-*适用于任何 Linux 发行版（静态链接，无依赖）*
-
-#### macOS (Intel)
-
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-macos-x64.tar.gz
-tar -xzf glm-plan-usage-macos-x64.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-
-#### macOS (Apple Silicon)
-
-```bash
-mkdir -p ~/.claude/glm-plan-usage
-wget https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-macos-arm64.tar.gz
-tar -xzf glm-plan-usage-macos-arm64.tar.gz
-cp glm-plan-usage ~/.claude/glm-plan-usage/
-chmod +x ~/.claude/glm-plan-usage/glm-plan-usage
-```
-
-#### Windows
-
-```powershell
-# 创建目录并下载
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\glm-plan-usage"
-Invoke-WebRequest -Uri "https://github.com/jukanntenn/glm-plan-usage/releases/latest/download/glm-plan-usage-windows-x64.zip" -OutFile "glm-plan-usage-windows-x64.zip"
-Expand-Archive -Path "glm-plan-usage-windows-x64.zip" -DestinationPath "."
-Move-Item "glm-plan-usage.exe" "$env:USERPROFILE\.claude\glm-plan-usage\"
-```
-
-</details>
-
-### 从源码构建
-
-```bash
-git clone https://github.com/jukanntenn/glm-plan-usage.git
-cd glm-plan-usage
-cargo build --release
-cp target/release/glm-plan-usage ~/.claude/glm-plan-usage/
-```
-
-## 配置
-
-在 Claude Code 的 `settings.json` 中添加：
-
-**Linux/macOS:**
+在 Claude Code 的 `settings.json` 中配置：
 
 ```json
 {
@@ -118,156 +117,87 @@ cp target/release/glm-plan-usage ~/.claude/glm-plan-usage/
 }
 ```
 
-**Windows:**
+### Windows 路径
 
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "%USERPROFILE%\\.claude\\glm-plan-usage\\glm-plan-usage.exe",
-    "padding": 0
-  }
-}
-```
-
-重启 Claude Code，状态栏将显示：
-
-```text
-🪙 32% (⌛️ 1:44) · 🌐 20/100
-   │  │           │     └─ MCP 使用量（已用/总计）
-   │  │           └─ 分隔符
-   │  └─ Token 倒计时（小时:分钟）
-   └─ Token 使用百分比
-
-```
-
-如果已在使用 [CCometixLine](https://github.com/Haleclipse/CCometixLine) 或其它类似插件，可创建脚本组合使用：
-
-**Linux/macOS:**
-
-`~/.claude/status-line-combined.sh` 脚本示例：
-
-```bash
-#!/bin/bash
-
-# 从 stdin 读取 JSON 输入
-INPUT=$(cat)
-
-# 使用相同输入运行两个命令
-CCLINE_OUTPUT=$(echo "$INPUT" | ~/.claude/ccline/ccline 2>/dev/null)
-GLM_OUTPUT=$(echo "$INPUT" | ~/.claude/glm-plan-usage/glm-plan-usage 2>/dev/null)
-
-# 构建组合输出
-OUTPUT=""
-
-# 如果 ccline 有输出，添加到输出
-if [ -n "$CCLINE_OUTPUT" ]; then
-    OUTPUT="$CCLINE_OUTPUT"
-fi
-
-# 如果 glm-plan-usage 有输出，添加到输出
-if [ -n "$GLM_OUTPUT" ]; then
-    if [ -n "$OUTPUT" ]; then
-        OUTPUT="$OUTPUT | $GLM_OUTPUT"
-    else
-        OUTPUT="$GLM_OUTPUT"
-    fi
-fi
-
-# 打印组合输出
-if [ -n "$OUTPUT" ]; then
-    printf "%s" "$OUTPUT"
-fi
-```
-
-赋予脚本执行权限：`chmod +x ~/.claude/status-line-combined.sh`
-
-在 Claude Code 的 `settings.json` 中配置：
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/status-line-combined.sh",
-    "padding": 0
-  }
-}
-```
-
-**Windows (PowerShell):**
-
-`%USERPROFILE%\.claude\status-line-combined.ps1` 脚本示例：
-
-```powershell
-# 从 stdin 读取 JSON 输入
-$InputString = [Console]::In.ReadToEnd()
-
-# 使用相同输入运行两个命令
-$CclineOutput = $InputString | & "$env:USERPROFILE\.claude\ccline\ccline.exe" 2>$null
-$GlmOutput = $InputString | & "$env:USERPROFILE\.claude\glm-plan-usage\glm-plan-usage.exe" 2>$null
-
-# 构建组合输出
-$Output = ""
-
-# 如果 ccline 有输出，添加到输出
-if (-not [string]::IsNullOrEmpty($CclineOutput)) {
-    $Output = $CclineOutput
-}
-
-# 如果 glm-plan-usage 有输出，添加到输出
-if (-not [string]::IsNullOrEmpty($GlmOutput)) {
-    if (-not [string]::IsNullOrEmpty($Output)) {
-        $Output = "$Output | $GlmOutput"
-    } else {
-        $Output = $GlmOutput
-    }
-}
-
-# 打印组合输出
-if (-not [string]::IsNullOrEmpty($Output)) {
-    Write-Host -NoNewline $Output
-}
-```
-
-PowerShell 中赋予脚本执行权限：`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-
-在 Claude Code 的 `settings.json` 中配置：
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "powershell.exe -File %USERPROFILE%\\.claude\\status-line-combined.ps1",
-    "padding": 0
-  }
-}
-```
+Windows 下将路径中的 `~` 替换为 `C:/Users/你的用户名`。
 
 ## 环境变量
 
-**注意**：这些变量通常已在 Claude Code 的 `settings.json` 中配置。如果没有，可以手动设置：
+### GLM 平台
 
-**Linux/macOS:**
+| 变量名 | 必需 | 说明 |
+|--------|------|------|
+| `ANTHROPIC_AUTH_TOKEN` | 是 | 智谱 API Key |
+| `ANTHROPIC_BASE_URL` | 否 | 默认 `https://open.bigmodel.cn/api/anthropic` |
 
-```bash
-export ANTHROPIC_AUTH_TOKEN="your-token-here"
-export ANTHROPIC_BASE_URL="https://open.bigmodel.cn/api/anthropic"
-```
+### MiniMax 平台
 
-**Windows (Command Prompt):**
+| 变量名 | 必需 | 说明 |
+|--------|------|------|
+| `ANTHROPIC_AUTH_TOKEN` | 是 | MiniMax API Key |
+| `ANTHROPIC_BASE_URL` | 是 | 设为 `https://api.minimaxi.com/anthropic` |
+| `HERTZ_SESSION` | 是 | MiniMax Cookie（用于查询用量） |
+
+MiniMax 用量查询 API 需要 Cookie 认证，不支持 API Key。获取步骤：
+
+1. 登录 MiniMax 开发平台
+2. 进入 **账户管理 → 套餐管理 → Token Plan**
+3. F12 → 网络（Network）→ 搜索 `remains`
+4. 点击请求 → 查看请求头中 Cookie → 找到 `HERTZ-SESSION=xxx`
+5. 复制 `=` 后面的值
+
+设置环境变量：
 
 ```cmd
-set ANTHROPIC_AUTH_TOKEN=your-token-here
-set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic
+setx HERTZ_SESSION "复制的值"
 ```
 
-**Windows (PowerShell):**
+或通过系统设置：Win+R → `sysdm.cpl` → 高级 → 环境变量 → 新建用户变量。
 
+> **注意：** Cookie 会过期，过期后需重新获取。设置后需重启终端/droid 才能生效。
+
+### Kimi 平台
+
+| 变量名 | 必需 | 说明 |
+|--------|------|------|
+| `ANTHROPIC_API_KEY` | 是 | Kimi API Key |
+| `ANTHROPIC_BASE_URL` | 是 | 设为 Kimi 的 API 地址 |
+
+## 配置选项
+
+### 字符模式（可选）
+
+程序会自动检测操作系统并选择合适的字符模式，无需手动配置。
+
+**自动检测：**
+- Windows 11（Build >= 22000）→ Emoji 模式
+- Windows 10（Build < 22000）→ ASCII 模式
+
+**手动强制覆盖（特殊情况下使用）：**
+
+如果你想手动指定字符模式，可以设置以下环境变量：
+
+**强制使用 Emoji 模式：**
 ```powershell
-$env:ANTHROPIC_AUTH_TOKEN="your-token-here"
-$env:ANTHROPIC_BASE_URL="https://open.bigmodel.cn/api/anthropic"
+# Windows PowerShell
+$env:GLM_FORCE_EMOJI="1"
+
+# Linux/macOS
+export GLM_FORCE_EMOJI=1
 ```
 
-## 许可证
+**强制使用 ASCII 模式：**
+```powershell
+# Windows PowerShell
+$env:GLM_FORCE_ASCII="1"
 
-MIT
+# Linux/macOS
+export GLM_FORCE_ASCII=1
+```
+
+**何时需要手动配置：**
+- 你的终端实际上支持 emoji，但自动检测误判为不支持
+- 你的终端不支持 emoji，显示乱码
+- 你想对比不同模式的显示效果
+
+**注意：** 大多数情况下不需要手动配置，自动检测已经足够好了。

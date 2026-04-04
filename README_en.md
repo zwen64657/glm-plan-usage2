@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 Claude Code status bar plugin that displays real-time GLM / MiniMax / Kimi multi-platform usage statistics.
 
-> **Note:** GLM and MiniMax have been tested successfully. Kimi has not been tested yet. The Node.js version is recommended; the Rust version may have compatibility issues in some environments.
+> **Note:** GLM and MiniMax have been tested successfully. Kimi has not been tested yet.
 
 ## Features
 
