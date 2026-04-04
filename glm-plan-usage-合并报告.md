@@ -1,6 +1,6 @@
 # GLM Plan Usage 完整修改报告
 
-> 本报告合并了多份修改报告：环境变量与时间显示修改、周限量支持、模型判断功能、调用次数显示、纯 Node.js 实现、Rust/JS 版本统一、环境变量与零值显示修正、Windows 10 编码问题、GLM 前缀显示、MiniMax/Kimi 多平台支持
+> 本报告合并了多份修改报告：环境变量与时间显示修改、周限量支持、模型判断功能、调用次数显示、纯 Node.js 实现、Rust/JS 版本统一、环境变量与零值显示修正、Windows 10 编码问题、GLM 前缀显示、MiniMax/Kimi 多平台支持、状态栏显示优化
 
 ---
 
@@ -16,6 +16,7 @@
 8. [Windows 10 编码问题解决方案](#8-windows-10-编码问题解决方案)
 9. [GLM 前缀显示（2026-03-30）](#9-glm-前缀显示2026-03-30)
 10. [MiniMax/Kimi 多平台支持（2026-03-30）](#10-minimaxkimi-多平台支持2026-03-30)
+11. [状态栏显示优化（2026-04-05）](#11-状态栏显示优化2026-04-05)
 
 ---
 
@@ -2302,3 +2303,107 @@ ureq = { version = "2.10", features = ["json", "native-certs"] }
 |------|---------|
 | `Cargo.toml` | ureq features 添加 `"native-certs"` |
 | `Cargo.lock` | 自动引入 `rustls-native-certs v0.7.3`、`schannel`、`rustls-pemfile` 等依赖 |
+
+---
+
+## 11. 状态栏显示优化
+
+### 修改时间
+2026-04-05
+
+### 修改目的
+解决 VSCode 底部状态栏中用量信息图标和数值挤在一起的问题，改善可读性。
+
+### 修改内容
+
+| 修改项 | 修改前 | 修改后 |
+|--------|--------|--------|
+| 图标替换 | 🪙（金币） | 🔋（电池） |
+| 去掉括号 | `🔋 4% (⏰ 6:20)` | `🔋 4% · ⏰ 6:20` |
+| 分隔符优化 | 图标和数值挤在一起 | 单空格分隔，组间用 ` · ` 分隔 |
+
+### 最终效果对比
+
+| 状态 | 修改前 | 修改后 |
+|------|--------|--------|
+| GLM 正常 | `GLM 🪙 4% (⏰ 6:20) · 📊 0 · 📅 0% · 🌐 7/1000 · ⚡ 0` | `GLM 🔋 4% · ⏰ 6:20 · 📊 0 · 📅 0% · 🌐 7/1000 · ⚡ 0` |
+| GLM 极限 | `GLM 🪙 100% (⏰ 23:59) · 📊 9999 · 📅 100% · 🌐 1000/1000 · ⚡ 1.50M` | `GLM 🔋 100% · ⏰ 23:59 · 📊 9999 · 📅 100% · 🌐 1000/1000 · ⚡ 1.50M` |
+| MiniMax 正常 | `MiniMax 🪙 1% (⏰ 6:20) · 📊 0/500 · 📅 0%` | `MiniMax 🔋 1% · ⏰ 6:20 · 📊 0/500 · 📅 0%` |
+| MiniMax 极限 | `MiniMax 🪙 100% (⏰ 23:59) · 📊 500/500 · 📅 100%` | `MiniMax 🔋 100% · ⏰ 23:59 · 📊 500/500 · 📅 100%` |
+| Kimi 正常 | `Kimi 🪙 1% (⏰ 6:20) · 📅 0%` | `Kimi 🔋 1% · ⏰ 6:20 · 📅 0%` |
+| Kimi 极限 | `Kimi 🪙 100% (⏰ 23:59) · 📅 100%` | `Kimi 🔋 100% · ⏰ 23:59 · 📅 100%` |
+
+### 代码变更
+
+#### Rust 版本
+
+**src/core/segments/glm_usage.rs**
+```rust
+// 修改前（Emoji 映射）
+CharMode::Emoji => ("🪙", "⏰", "📊", "📅", "🌐", "⚡"),
+
+// 修改后
+CharMode::Emoji => ("🔋", "⏰", "📊", "📅", "🌐", "⚡"),
+
+// 修改前（format_stats）
+parts.push(format!("{} {}% ({} {})", token_icon, token.percentage, clock_icon, reset_time));
+
+// 修改后（去掉括号，用 · 分隔）
+parts.push(format!("{} {}% · {} {}", token_icon, token.percentage, clock_icon, reset_time));
+
+// 修改前（placeholder）
+format!("GLM {} % ({} --:--) · {} 0 · {} / · {}", ...)
+
+// 修改后
+format!("GLM {} % · {} --:-- · {} 0 · {} / · {}", ...)
+```
+
+**src/core/segments/minimax_usage.rs**
+```rust
+// 修改前
+CharMode::Emoji => ("🪙", "⏰", "📊", "📅"),
+parts.push(format!("{} {}% ({} {})", ...));
+
+// 修改后
+CharMode::Emoji => ("🔋", "⏰", "📊", "📅"),
+parts.push(format!("{} {}% · {} {}", ...));
+```
+
+**src/core/segments/kimi_usage.rs**
+```rust
+// 修改前
+CharMode::Emoji => ("🪙", "⏰", "📅"),
+parts.push(format!("{} {}% ({} {})", ...));
+
+// 修改后
+CharMode::Emoji => ("🔋", "⏰", "📅"),
+parts.push(format!("{} {}% · {} {}", ...));
+```
+
+#### Node.js 版本
+
+**npm/main/bin/glm-plan-usage-pure.js**
+```javascript
+// 修改前（GLM icon 映射）
+token: "🪙"
+
+// 修改后
+token: "🔋"
+
+// 修改前（GLM format）
+parts.push(`${icons.token} ${stats.tokenLimit.percentage}% (${icons.clock} ${fmtReset(...)})`);
+
+// 修改后
+parts.push(`${icons.token} ${stats.tokenLimit.percentage}% · ${icons.clock} ${fmtReset(...)}`);
+
+// MiniMax 和 Kimi 的 format 函数同步修改
+```
+
+### 相关文件
+
+| 文件 | 修改内容 |
+|------|---------|
+| `src/core/segments/glm_usage.rs` | Emoji 映射 + format_stats + placeholder |
+| `src/core/segments/minimax_usage.rs` | Emoji 映射 + format_stats + placeholder |
+| `src/core/segments/kimi_usage.rs` | Emoji 映射 + format_stats + placeholder |
+| `npm/main/bin/glm-plan-usage-pure.js` | GLM/MiniMax/Kimi 三个 format 函数 + placeholder |

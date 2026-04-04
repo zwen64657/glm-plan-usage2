@@ -8,7 +8,7 @@ Claude Code status bar plugin that displays real-time GLM / MiniMax / Kimi multi
 
 ## Features
 
-- 🪙 5-hour Token quota usage percentage + reset time
+- 🔋 5-hour Token quota usage percentage + reset time
 - 📊 5-hour model call count
 - ⚡ 5-hour Token consumption
 - 📅 Weekly quota percentage (new plans)
@@ -17,7 +17,7 @@ Claude Code status bar plugin that displays real-time GLM / MiniMax / Kimi multi
 - Auto-identify GLM / MiniMax / Kimi models; non-supported models are hidden
 - 2-minute cache
 - **Smart character mode detection** - Automatically choose Emoji or ASCII mode
-  - Windows 11 → Emoji mode 🪙📊⚡📅🌐⏰
+  - Windows 11 → Emoji mode 🔋📊⚡📅🌐⏰
   - Windows 10 → ASCII mode $#k%MT (to avoid garbled text)
 
 ## Display Example
@@ -26,50 +26,50 @@ Claude Code status bar plugin that displays real-time GLM / MiniMax / Kimi multi
 
 Old plan (no weekly quota):
 ```
-GLM 🪙 5% (⏰ 23:00) · 📊 93 · 🌐 0/1000 · ⚡ 3.38M
+GLM 🔋 5% · ⏰ 23:00 · 📊 93 · 🌐 0/1000 · ⚡ 3.38M
 ```
 
 New plan (with weekly quota):
 ```
-GLM 🪙 5% (⏰ 23:00) · 📊 93 · 📅 25% · 🌐 0/1000 · ⚡ 3.38M
+GLM 🔋 5% · ⏰ 23:00 · 📊 93 · 📅 25% · 🌐 0/1000 · ⚡ 3.38M
 ```
 
 ### MiniMax Platform
 
 ```
-MiniMax 🪙 5% (⏰ 23:00) · 📊 93/1200 · 📅 25%
+MiniMax 🔋 5% · ⏰ 23:00 · 📊 93/1200 · 📅 25%
 ```
 
 ### Kimi Platform
 
 ```
-Kimi 🪙 12% (⏰ 18:00) · 📅 8%
+Kimi 🔋 12% · ⏰ 18:00 · 📅 8%
 ```
 
 ### ASCII Mode (Windows 10)
 
 GLM old plan (no weekly quota):
 ```
-GLM $ 5% (T 23:00) · # 93 · M 0/1000 · k 3.38M
+GLM $ 5% · T 23:00 · # 93 · M 0/1000 · k 3.38M
 ```
 
 GLM new plan (with weekly quota):
 ```
-GLM $ 5% (T 23:00) · # 93 · % 25% · M 0/1000 · k 3.38M
+GLM $ 5% · T 23:00 · # 93 · % 25% · M 0/1000 · k 3.38M
 ```
 
 MiniMax:
 ```
-MiniMax $ 5% (T 23:00) · # 93/1200 · % 25%
+MiniMax $ 5% · T 23:00 · # 93/1200 · % 25%
 ```
 
 Kimi:
 ```
-Kimi $ 12% (T 18:00) · % 8%
+Kimi $ 12% · T 18:00 · % 8%
 ```
 
 **Character Mapping:**
-- 🪙 → $ (Token quota)
+- 🔋 → $ (Token quota)
 - 📊 → # (Call count)
 - ⚡ → k (Token consumption)
 - 📅 → % (Weekly quota)
