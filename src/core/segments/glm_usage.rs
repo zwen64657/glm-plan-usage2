@@ -82,14 +82,21 @@ impl GlmUsageSegment {
         }
     }
 
-    fn format_stats(stats: &UsageStats, char_mode: CharMode) -> String {
+    fn format_stats(stats: &UsageStats, char_mode: CharMode, prefix: &str) -> String {
         let mut parts = Vec::new();
+        let minimal = std::env::var("USAGE_MINIMAL").is_ok();
 
-        // Character mapping based on mode
-        let (token_icon, clock_icon, chart_icon, calendar_icon, globe_icon, lightning_icon) = match char_mode {
-            CharMode::Emoji => ("🔋", "⏰", "📊", "📅", "🌐", "⚡"),
-            CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
+        // Character mapping: minimal mode strips all icons
+        let (token_icon, clock_icon, chart_icon, calendar_icon, globe_icon, lightning_icon) = if minimal {
+            ("", "", "", "", "", "")
+        } else {
+            match char_mode {
+                CharMode::Emoji => ("🔋", "⏰", "📊", "📅", "🌐", "⚡"),
+                CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
+            }
         };
+
+        let sep = if minimal { "" } else { " " };
 
         // Token usage with reset time
         if let Some(token) = &stats.token_usage {
@@ -98,33 +105,33 @@ impl GlmUsageSegment {
                 .and_then(format_reset_time)
                 .unwrap_or_else(|| "--:--".to_string());
 
-            parts.push(format!("{} {}% · {} {}", token_icon, token.percentage, clock_icon, reset_time));
+            parts.push(format!("{}{}{}% · {}{}{}", token_icon, sep, token.percentage, clock_icon, sep, reset_time));
         }
 
         // Call count (raw number only)
         if let Some(call_count) = stats.call_count {
-            parts.push(format!("{} {}", chart_icon, call_count));
+            parts.push(format!("{}{}{}", chart_icon, sep, call_count));
         }
 
         // Weekly usage (new plan only, percentage)
         if let Some(weekly) = &stats.weekly_usage {
-            parts.push(format!("{} {}%", calendar_icon, weekly.percentage));
+            parts.push(format!("{}{}{}%", calendar_icon, sep, weekly.percentage));
         }
 
         // MCP raw count
         if let Some(mcp) = &stats.mcp_usage {
-            parts.push(format!("{} {}/{}", globe_icon, mcp.used, mcp.limit));
+            parts.push(format!("{}{}{}/{}", globe_icon, sep, mcp.used, mcp.limit));
         }
 
         // Token consumption (5-hour window)
         if let Some(tokens) = stats.tokens_used {
-            parts.push(format!("{} {}", lightning_icon, format_tokens(tokens)));
+            parts.push(format!("{}{}{}", lightning_icon, sep, format_tokens(tokens)));
         }
 
         if parts.is_empty() {
             String::new()
         } else {
-            format!("GLM {}", parts.join(" · "))
+            format!("{} {}", prefix, parts.join(" · "))
         }
     }
 
@@ -149,36 +156,15 @@ impl Segment for GlmUsageSegment {
     }
 
     fn collect(&self, input: &InputData, config: &Config) -> Option<SegmentData> {
-        // Only show for GLM models
-        if let Some(model) = &input.model {
-            let model_id = model.id.to_lowercase();
-            if !model_id.contains("glm") && !model_id.contains("chatglm") {
-                return None;
-            }
-        }
+        // No model filtering - show GLM usage if API is configured
+        let stats = self.get_usage_stats(config)?;
 
-        let stats = self.get_usage_stats(config);
-
-        let (text, style) = match &stats {
-            Some(s) => {
-                (Self::format_stats(s, self.char_mode), Self::get_color(s))
-            }
-            None => {
-                // Placeholder format when no data
-                let (token_icon, clock_icon, chart_icon, _calendar_icon, globe_icon, lightning_icon) = match self.char_mode {
-                    CharMode::Emoji => ("🔋", "⏰", "📊", "📅", "🌐", "⚡"),
-                    CharMode::Ascii => ("$", "T", "#", "%", "M", "k"),
-                };
-                let text = format!("GLM {} % · {} --:-- · {} 0 · {} / · {}", token_icon, clock_icon, chart_icon, globe_icon, lightning_icon);
-                let style = SegmentStyle { color_256: Some(109), bold: true, color: None };
-                (text, style)
-            }
-        };
-
+        let model_name = input.model.as_ref().map(|m| m.id.as_str()).unwrap_or("GLM");
+        let text = Self::format_stats(&stats, self.char_mode, model_name);
         if text.is_empty() {
             None
         } else {
-            Some(SegmentData { text, style })
+            Some(SegmentData { text, style: Self::get_color(&stats) })
         }
     }
 }

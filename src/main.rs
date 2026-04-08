@@ -15,7 +15,7 @@ fn main() {
     let args = cli::Args::parse();
 
     // Setup debug logging
-    let debug = std::env::var("GLM_DEBUG").unwrap_or_default() == "1";
+    let debug = std::env::var("USAGE_DEBUG").unwrap_or_default() == "1";
     let log_path = dirs::home_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join(".claude")
@@ -96,17 +96,9 @@ fn main() {
 
     log(&format!("model: {:?}", input.model.as_ref().map(|m| &m.id)));
 
-    // Only show for supported models
-    if let Some(model) = &input.model {
-        let model_id = model.id.to_lowercase();
-        let is_glm = model_id.contains("glm") || model_id.contains("chatglm");
-        let is_minimax = model_id.contains("minimax");
-        let is_kimi = model_id.contains("kimi");
-        if !is_glm && !is_minimax && !is_kimi {
-            log("not a supported model, skipping");
-            return;
-        }
-    }
+    // Model filtering is disabled - always show usage if API is configured
+    // The plugin will show data for whichever platform has valid credentials
+    // This allows usage with model aliases like "opus[200k]" that map to GLM models
 
     // Create status line generator with all segments
     let generator = StatusLineGenerator::new()

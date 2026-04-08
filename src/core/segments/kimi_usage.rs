@@ -61,11 +61,17 @@ impl KimiUsageSegment {
         result
     }
 
-    fn format_stats(stats: &KimiUsageStats, char_mode: CharMode) -> String {
-        let (token_icon, clock_icon, calendar_icon) = match char_mode {
-            CharMode::Emoji => ("🔋", "⏰", "📅"),
-            CharMode::Ascii => ("$", "T", "%"),
+    fn format_stats(stats: &KimiUsageStats, char_mode: CharMode, prefix: &str) -> String {
+        let minimal = std::env::var("USAGE_MINIMAL").is_ok();
+        let (token_icon, clock_icon, calendar_icon) = if minimal {
+            ("", "", "")
+        } else {
+            match char_mode {
+                CharMode::Emoji => ("🔋", "⏰", "📅"),
+                CharMode::Ascii => ("$", "T", "%"),
+            }
         };
+        let sep = if minimal { "" } else { " " };
 
         let mut parts = Vec::new();
 
@@ -76,26 +82,16 @@ impl KimiUsageSegment {
             .and_then(format_iso_reset_time)
             .unwrap_or_else(|| "--:--".to_string());
         parts.push(format!(
-            "{} {}% · {} {}",
-            token_icon, stats.five_hour_pct, clock_icon, reset_time
+            "{}{}{}% · {}{}{}",
+            token_icon, sep, stats.five_hour_pct, clock_icon, sep, reset_time
         ));
 
         // Weekly percentage (Kimi always has weekly)
-        parts.push(format!("{} {}%", calendar_icon, stats.weekly_pct));
+        parts.push(format!("{}{}{}%", calendar_icon, sep, stats.weekly_pct));
 
-        format!("Kimi {}", parts.join(" · "))
+        format!("{} {}", prefix, parts.join(" · "))
     }
 
-    fn placeholder_text(&self) -> String {
-        let (token_icon, clock_icon, calendar_icon) = match self.char_mode {
-            CharMode::Emoji => ("🔋", "⏰", "📅"),
-            CharMode::Ascii => ("$", "T", "%"),
-        };
-        format!(
-            "Kimi {} % · {} --:-- · {} %",
-            token_icon, clock_icon, calendar_icon
-        )
-    }
 }
 
 impl Default for KimiUsageSegment {
@@ -110,39 +106,18 @@ impl Segment for KimiUsageSegment {
     }
 
     fn collect(&self, input: &InputData, config: &Config) -> Option<SegmentData> {
-        // Only show for Kimi models
-        if let Some(model) = &input.model {
-            let model_id = model.id.to_lowercase();
-            if !model_id.contains("kimi") {
-                return None;
-            }
-        }
+        // No model filtering - show Kimi usage only if API is configured
+        let stats = self.get_usage_stats(config)?;
 
-        let stats = self.get_usage_stats(config);
-
-        let (text, style) = match &stats {
-            Some(s) => (
-                Self::format_stats(s, self.char_mode),
-                SegmentStyle {
-                    color_256: Some(79),
-                    bold: true,
-                    color: None,
-                },
-            ),
-            None => (
-                self.placeholder_text(),
-                SegmentStyle {
-                    color_256: Some(79),
-                    bold: true,
-                    color: None,
-                },
-            ),
-        };
-
+        let model_name = input.model.as_ref().map(|m| m.id.as_str()).unwrap_or("Kimi");
+        let text = Self::format_stats(&stats, self.char_mode, model_name);
         if text.is_empty() {
             None
         } else {
-            Some(SegmentData { text, style })
+            Some(SegmentData {
+                text,
+                style: SegmentStyle { color_256: Some(79), bold: true, color: None },
+            })
         }
     }
 }

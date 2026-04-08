@@ -68,6 +68,8 @@ pub struct StyleConfig {
     pub mode: String,
     #[serde(default = "default_separator")]
     pub separator: String,
+    #[serde(default = "default_colors_enabled")]
+    pub colors_enabled: bool,
 }
 
 impl Default for StyleConfig {
@@ -75,6 +77,7 @@ impl Default for StyleConfig {
         Self {
             mode: default_style_mode(),
             separator: default_separator(),
+            colors_enabled: default_colors_enabled(),
         }
     }
 }
@@ -85,6 +88,10 @@ fn default_style_mode() -> String {
 
 fn default_separator() -> String {
     " | ".to_string()
+}
+
+fn default_colors_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

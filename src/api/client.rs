@@ -1,4 +1,5 @@
 use super::types::*;
+use crate::config::{get_api_key, get_base_url};
 use anyhow::Result;
 use std::time::Duration;
 use ureq::{Agent, Request};
@@ -29,13 +30,24 @@ struct QuotaLimitDataWithLevel {
 }
 
 impl GlmApiClient {
-    /// Create client from environment variables
+    /// Create client from environment variables or Claude Code config
+    ///
+    /// Credential lookup order:
+    /// 1. `ANTHROPIC_AUTH_TOKEN` environment variable
+    /// 2. Claude Code `settings.json` (apiKey field)
+    /// 3. Error if neither is found
+    ///
+    /// Base URL lookup order:
+    /// 1. `ANTHROPIC_BASE_URL` environment variable
+    /// 2. Claude Code `settings.json` (baseUrl field)
+    /// 3. Default GLM URL
     pub fn from_env() -> Result<Self> {
-        let token = std::env::var("ANTHROPIC_AUTH_TOKEN")
-            .map_err(|_| ApiError::MissingEnvVar("ANTHROPIC_AUTH_TOKEN".to_string()))?;
+        // Try environment variable first, then Claude Code config
+        let token = get_api_key()
+            .map_err(|e| ApiError::CredentialNotFound(e.to_string()))?;
 
-        let base_url = std::env::var("ANTHROPIC_BASE_URL")
-            .unwrap_or_else(|_| "https://open.bigmodel.cn/api/anthropic".to_string());
+        // Try environment variable, then Claude Code config, then default
+        let base_url = get_base_url("https://open.bigmodel.cn/api/anthropic");
 
         let platform =
             Platform::detect_from_url(&base_url).ok_or(ApiError::PlatformDetectionFailed)?;
@@ -74,7 +86,7 @@ impl GlmApiClient {
             }
         }
 
-        Err(last_error.unwrap())
+        Err(last_error.unwrap_or_else(|| ApiError::HttpError("All retry attempts failed".to_string()).into()))
     }
 
     fn try_fetch_usage_stats(&self) -> Result<UsageStats> {
@@ -189,13 +201,15 @@ impl GlmApiClient {
         // Use platform-appropriate timezone for API queries
         // Zhipu server expects Beijing time (UTC+8), ZAI server expects UTC
         let tz = match self.platform {
-            Platform::Zhipu => chrono::FixedOffset::east_opt(8 * 3600).unwrap(),
-            Platform::Zai => chrono::FixedOffset::east_opt(0).unwrap(),
+            Platform::Zhipu => chrono::FixedOffset::east_opt(8 * 3600)
+                .ok_or_else(|| ApiError::ParseError("Invalid timezone offset".to_string()))?,
+            Platform::Zai => chrono::FixedOffset::east_opt(0)
+                .ok_or_else(|| ApiError::ParseError("Invalid timezone offset".to_string()))?,
         };
 
         // Use reset time to calculate window: from (reset - 5h) to reset
         let reset_time = chrono::DateTime::from_timestamp_millis(reset_ms)
-            .unwrap_or_else(|| chrono::Utc::now())
+            .unwrap_or(chrono::Utc::now())
             .with_timezone(&tz);
         let start_time = reset_time - chrono::Duration::hours(5);
 

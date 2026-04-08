@@ -1,4 +1,5 @@
 use super::minimax_types::*;
+use crate::config::{get_api_key, get_base_url};
 use anyhow::Result;
 use std::time::Duration;
 use ureq::{Agent, Request};
@@ -12,15 +13,17 @@ pub struct MiniMaxApiClient {
 }
 
 impl MiniMaxApiClient {
-    /// Create client from environment variables.
+    /// Create client from environment variables or Claude Code config.
     /// Requires `ANTHROPIC_BASE_URL` containing `minimaxi.com` or `minimax.io`.
-    /// Uses `MINIMAX_COOKIE` or `HERTZ_SESSION` env var for Cookie auth.
+    /// Credential lookup: env var → Claude Code settings.json.
     pub fn from_env() -> Result<Self> {
-        let token = std::env::var("ANTHROPIC_AUTH_TOKEN")
-            .map_err(|_| anyhow::anyhow!("Missing ANTHROPIC_AUTH_TOKEN"))?;
+        let token = get_api_key()
+            .map_err(|_| anyhow::anyhow!("Missing API key (env or Claude config)"))?;
 
-        let base_url = std::env::var("ANTHROPIC_BASE_URL")
-            .map_err(|_| anyhow::anyhow!("Missing ANTHROPIC_BASE_URL"))?;
+        let base_url = get_base_url("");
+        if base_url.is_empty() {
+            return Err(anyhow::anyhow!("Missing base URL (env or Claude config)"));
+        }
 
         // Verify it's a MiniMax URL
         if !base_url.contains("minimaxi.com") && !base_url.contains("minimax.io") {
@@ -31,9 +34,9 @@ impl MiniMaxApiClient {
         let monitor_base = extract_domain(&base_url);
 
         // Read cookie: prefer MINIMAX_COOKIE, fall back to HERTZ_SESSION
-        let cookie = std::env::var("MINIMAX_COOKIE")
+        let cookie = std::env::var("USAGE_MINIMAX_COOKIE")
             .or_else(|_| {
-                std::env::var("HERTZ_SESSION")
+                std::env::var("USAGE_HERTZ_SESSION")
                     .map(|v| format!("HERTZ-SESSION={}", v))
             })
             .ok();
@@ -66,7 +69,7 @@ impl MiniMaxApiClient {
             }
         }
 
-        Err(last_error.unwrap())
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("All retry attempts failed")))
     }
 
     fn try_fetch(&self) -> Result<MiniMaxUsageStats> {
