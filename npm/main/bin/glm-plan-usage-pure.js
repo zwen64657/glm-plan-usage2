@@ -10,6 +10,7 @@ const API_TIMEOUT = 5000;
 const CACHE_TTL_MS = 120_000;
 
 let cache = null;
+let speedCache = null;
 
 function getEnv(name) {
   return process.env[name] || "";
@@ -191,7 +192,7 @@ function reset() {
   return "\x1b[0m";
 }
 
-function format(stats, charMode) {
+function format(stats, charMode, outputTps, inputTps) {
   // Character mapping based on mode
   const icons = charMode === CharMode.Ascii ? {
     token: "$",
@@ -199,25 +200,37 @@ function format(stats, charMode) {
     chart: "#",
     calendar: "%",
     globe: "M",
-    lightning: "k"
+    lightning: "k",
+    rocket: "v",
+    inbox: "^"
   } : {
     token: "🔋",
     clock: "⏰",
     chart: "📊",
     calendar: "📅",
     globe: "🌐",
-    lightning: "⚡"
+    lightning: "⚡",
+    rocket: "🚀",
+    inbox: "📥"
   };
 
   // When no stats available, show placeholder format
   if (!stats) {
-    return `${color256(109)}\x1b[1mGLM ${icons.token} % · ${icons.clock} --:-- · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
+    return `${color256(109)}\x1b[1mGLM ${icons.token} % · ${icons.clock} --:-- · ↓${icons.rocket} -- · ↑${icons.inbox} -- · ${icons.chart} 0 · ${icons.globe} / · ${icons.lightning}${reset()}`;
   }
 
   const parts = [];
 
   if (stats.tokenLimit) {
     parts.push(`${icons.token} ${stats.tokenLimit.percentage}% · ${icons.clock} ${fmtReset(stats.tokenLimit.nextResetTime)}`);
+  }
+
+  if (outputTps > 0) {
+    parts.push(`↓${icons.rocket} ${outputTps.toFixed(1)}`);
+  }
+
+  if (inputTps > 0) {
+    parts.push(`↑${icons.inbox} ${inputTps.toFixed(1)}`);
   }
 
   if (stats.callCount != null) {
@@ -507,7 +520,34 @@ async function main() {
     if (client.token) {
       stats = await fetchStats(client);
     }
-    output = format(stats, charMode);
+
+    // Calculate TPS from context_window
+    const totalInput = input.context_window?.total_input_tokens || 0;
+    const totalOutput = input.context_window?.total_output_tokens || 0;
+    let outputTps = 0;
+    let inputTps = 0;
+    const now = Date.now();
+
+    if (speedCache && totalInput >= speedCache.totalInput && totalOutput >= speedCache.totalOutput) {
+      const deltaMs = now - speedCache.ts;
+      if (deltaMs > 100) {
+        const deltaSec = deltaMs / 1000;
+        const deltaOut = totalOutput - speedCache.totalOutput;
+        const deltaIn = totalInput - speedCache.totalInput;
+        const instantOut = deltaOut > 0 ? deltaOut / deltaSec : 0;
+        const instantIn = deltaIn > 0 ? deltaIn / deltaSec : 0;
+        const alpha = deltaMs < 30000 ? 0.5 : 1;
+        outputTps = alpha * instantOut + (1 - alpha) * (speedCache.outputTps || 0);
+        inputTps = alpha * instantIn + (1 - alpha) * (speedCache.inputTps || 0);
+      } else {
+        outputTps = speedCache.outputTps || 0;
+        inputTps = speedCache.inputTps || 0;
+      }
+    }
+
+    speedCache = { ts: now, totalInput, totalOutput, outputTps, inputTps };
+
+    output = format(stats, charMode, outputTps, inputTps);
   }
 
   log(`output: ${output ? output.length + " chars" : "empty"}`);

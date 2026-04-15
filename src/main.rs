@@ -90,6 +90,7 @@ fn main() {
                 workspace: None,
                 transcript_path: None,
                 cost_info: None,
+                context_window: None,
             }
         }
     };
