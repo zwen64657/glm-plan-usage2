@@ -1,6 +1,6 @@
 [package]
 name = "glm-plan-usage"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2021"
 description = "GLM plan usage plugin for Claude Code"
 authors = ["Alice"]
