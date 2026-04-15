@@ -65,6 +65,7 @@ pub struct QuotaLimitItem {
     pub usage: i64,
     #[serde(rename = "currentValue", default)]
     pub current_value: i64,
+    #[serde(default)]
     pub percentage: i32,
     #[serde(rename = "nextResetTime", default)]
     pub next_reset_time: Option<i64>, // Millisecond timestamp
