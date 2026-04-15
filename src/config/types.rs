@@ -10,16 +10,6 @@ pub struct InputData {
     pub transcript_path: Option<String>,
     #[serde(rename = "cost")]
     pub cost_info: Option<CostInfo>,
-    pub context_window: Option<ContextWindow>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct ContextWindow {
-    #[serde(default)]
-    pub total_input_tokens: Option<i64>,
-    #[serde(default)]
-    pub total_output_tokens: Option<i64>,
 }
 
 #[allow(dead_code)]
