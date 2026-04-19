@@ -16,10 +16,10 @@ impl TerminalDetector {
     /// Detect the best character mode for the current terminal
     pub fn detect() -> CharMode {
         // Check environment variables first (user override)
-        if env::var("GLM_FORCE_EMOJI").is_ok() {
+        if env::var("USAGE_FORCE_EMOJI").is_ok() {
             return CharMode::Emoji;
         }
-        if env::var("GLM_FORCE_ASCII").is_ok() {
+        if env::var("USAGE_FORCE_ASCII").is_ok() {
             return CharMode::Ascii;
         }
 
@@ -31,7 +31,7 @@ impl TerminalDetector {
                 return CharMode::Emoji;
             }
             // Windows 10: default to ASCII mode to avoid encoding issues
-            // Users can override with GLM_FORCE_EMOJI=1 if they know their terminal supports it
+            // Users can override with USAGE_FORCE_EMOJI=1 if they know their terminal supports it
             return CharMode::Ascii;
         }
 
@@ -45,7 +45,7 @@ impl TerminalDetector {
 
         // Use PowerShell to get Windows version
         let output = Command::new("powershell")
-            .args(&["-NoProfile", "-Command", "[System.Environment]::OSVersion.Version.Build"])
+            .args(["-NoProfile", "-Command", "[System.Environment]::OSVersion.Version.Build"])
             .output();
 
         match output {

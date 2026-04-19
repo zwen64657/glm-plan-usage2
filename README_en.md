@@ -19,10 +19,21 @@ Claude Code status bar plugin that displays real-time GLM / MiniMax / Kimi multi
 - **Smart character mode detection** - Automatically choose Emoji or ASCII mode
   - Windows 11 → Emoji mode 🔋📊⚡📅🌐⏰
   - Windows 10 → ASCII mode $#k%MT (to avoid garbled text)
+- **Minimal mode** - Strip all icons via `USAGE_MINIMAL=1`
+- **Auto-detect credentials** - Reads Claude Code `settings.json` automatically, no extra env vars needed
+- **NO_COLOR support** - Follows [no-color.org](https://no-color.org) convention
 
 ## Display Example
 
-### GLM Platform
+### Minimal Mode (`USAGE_MINIMAL=1`)
+
+```
+glm-5.1 5% · 23:00 · 93 · 25% · 0/1000 · 3.38M
+```
+
+### Normal Mode
+
+#### GLM Platform
 
 Old plan (no weekly quota):
 ```
@@ -123,6 +134,8 @@ On Windows, replace `~` with `C:/Users/YourUsername` in the paths.
 
 ## Environment Variables
 
+> **Auto-detection:** If you have `ANTHROPIC_AUTH_TOKEN` and `ANTHROPIC_BASE_URL` configured in Claude Code `settings.json`, no additional environment variable setup is needed. The plugin reads them automatically.
+
 ### GLM Platform
 
 | Variable | Required | Description |
@@ -136,7 +149,7 @@ On Windows, replace `~` with `C:/Users/YourUsername` in the paths.
 |----------|----------|-------------|
 | `ANTHROPIC_AUTH_TOKEN` | Yes | MiniMax API Key |
 | `ANTHROPIC_BASE_URL` | Yes | Set to `https://api.minimaxi.com/anthropic` |
-| `HERTZ_SESSION` | Yes | MiniMax Cookie (required for usage query) |
+| `USAGE_MINIMAX_COOKIE` | Yes | MiniMax Cookie (required for usage query) |
 
 MiniMax usage query API requires Cookie authentication; API Key is not supported. To obtain:
 
@@ -149,7 +162,7 @@ MiniMax usage query API requires Cookie authentication; API Key is not supported
 Set environment variable:
 
 ```cmd
-setx HERTZ_SESSION "the_copied_value"
+setx USAGE_MINIMAX_COOKIE "the_copied_value"
 ```
 
 Or via System Settings: Win+R → `sysdm.cpl` → Advanced → Environment Variables → New user variable.
@@ -180,13 +193,13 @@ If you want to manually specify the character mode, set the following environmen
 **Force Emoji Mode:**
 ```powershell
 # Windows PowerShell
-$env:GLM_FORCE_EMOJI="1"
+$env:USAGE_FORCE_EMOJI="1"
 ```
 
 **Force ASCII Mode:**
 ```powershell
 # Windows PowerShell
-$env:GLM_FORCE_ASCII="1"
+$env:USAGE_FORCE_ASCII="1"
 ```
 
 **When to use manual configuration:**
@@ -195,3 +208,51 @@ $env:GLM_FORCE_ASCII="1"
 - You want to compare the display of different modes
 
 **Note:** In most cases, manual configuration is not needed. Auto-detection works well enough.
+
+### Display Control
+
+| Variable | Description |
+|----------|-------------|
+| `USAGE_MINIMAL=1` | Minimal mode — strip all icons, show data only |
+| `NO_COLOR` | Disable color output (follows [no-color.org](https://no-color.org) convention) |
+| `USAGE_NO_COLOR` | Same as above, project-specific variable name |
+| `USAGE_DEBUG=1` | Enable debug logging to `~/.claude/glm-plan-usage/debug.log` |
+| `USAGE_CLAUDE_CONFIG_PATH` | Custom Claude Code config file path |
+
+## Security
+
+### Credential Management
+
+- ✅ **Auto-detect credentials** - Reads from environment variables first, falls back to Claude Code `settings.json`
+- ✅ **HTTPS transmission** - All API requests transmitted over encrypted connections
+- ✅ **No logging output** - Tokens never appear in logs or error messages
+- ✅ **No config file writes** - API Keys are never written to any file
+
+### Security Best Practices
+
+1. **Don't write API Keys to config files**
+   - Use environment variables for credential management
+   - Config files are already in `.gitignore` to prevent accidental commits
+
+2. **Don't hardcode Keys in Shell config files**
+   ```bash
+   # ❌ Not recommended: Directly in .bashrc/.zshrc
+   export ANTHROPIC_AUTH_TOKEN="sk-xxxxx"
+
+   # ✅ Recommended: Use .env file (remember to add to .gitignore)
+   # .env file contents:
+   ANTHROPIC_AUTH_TOKEN=sk-xxxxx
+   ```
+
+3. **Regularly rotate API Keys**
+   - Change API Keys periodically to reduce leakage risk
+   - If you suspect a Key has been leaked, revoke it immediately and regenerate
+
+4. **Multi-user environment precautions**
+   - On shared servers, environment variables may be readable by other processes on the same machine
+   - Consider using containers or isolated user environments
+
+### Known Limitations
+
+- Environment variables can be read by `ps` command or `/proc/*/environ` while the process is running (requires system-level access)
+- Core dumps may contain sensitive data from memory (consider disabling coredump in production environments)

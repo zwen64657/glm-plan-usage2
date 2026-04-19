@@ -21,13 +21,18 @@ impl StatusLineGenerator {
     pub fn generate(&self, input: &crate::config::InputData, config: &Config) -> String {
         let mut parts = Vec::new();
 
+        // Check if colors should be disabled
+        let no_color = std::env::var("NO_COLOR").is_ok()
+            || std::env::var("USAGE_NO_COLOR").is_ok()
+            || !config.style.colors_enabled;
+
         for segment in &self.segments {
             if !segment.is_enabled(config) {
                 continue;
             }
 
             if let Some(data) = segment.collect(input, config) {
-                let formatted = Self::format_segment(&data);
+                let formatted = Self::format_segment(&data, no_color);
                 parts.push(formatted);
             }
         }
@@ -40,26 +45,31 @@ impl StatusLineGenerator {
         parts.join(separator)
     }
 
-    fn format_segment(data: &SegmentData) -> String {
+    fn format_segment(data: &SegmentData, no_color: bool) -> String {
         let mut output = String::new();
 
-        // Apply color
-        if let Some(color_256) = data.style.color_256 {
-            output.push_str(&format!("\x1b[38;5;{}m", color_256));
-        } else if let Some((r, g, b)) = data.style.color {
-            output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
-        }
+        // Skip colors if disabled
+        if !no_color {
+            // Apply color
+            if let Some(color_256) = data.style.color_256 {
+                output.push_str(&format!("\x1b[38;5;{}m", color_256));
+            } else if let Some((r, g, b)) = data.style.color {
+                output.push_str(&format!("\x1b[38;2;{};{};{}m", r, g, b));
+            }
 
-        // Apply bold
-        if data.style.bold {
-            output.push_str("\x1b[1m");
+            // Apply bold
+            if data.style.bold {
+                output.push_str("\x1b[1m");
+            }
         }
 
         // Add text
         output.push_str(&data.text);
 
         // Reset
-        output.push_str("\x1b[0m");
+        if !no_color {
+            output.push_str("\x1b[0m");
+        }
 
         output
     }

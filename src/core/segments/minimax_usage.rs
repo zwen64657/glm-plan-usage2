@@ -62,11 +62,17 @@ impl MiniMaxUsageSegment {
         result
     }
 
-    fn format_stats(stats: &MiniMaxUsageStats, char_mode: CharMode) -> String {
-        let (token_icon, clock_icon, chart_icon, calendar_icon) = match char_mode {
-            CharMode::Emoji => ("🔋", "⏰", "📊", "📅"),
-            CharMode::Ascii => ("$", "T", "#", "%"),
+    fn format_stats(stats: &MiniMaxUsageStats, char_mode: CharMode, prefix: &str) -> String {
+        let minimal = std::env::var("USAGE_MINIMAL").is_ok();
+        let (token_icon, clock_icon, chart_icon, calendar_icon) = if minimal {
+            ("", "", "", "")
+        } else {
+            match char_mode {
+                CharMode::Emoji => ("🔋", "⏰", "📊", "📅"),
+                CharMode::Ascii => ("$", "T", "#", "%"),
+            }
         };
+        let sep = if minimal { "" } else { " " };
 
         let mut parts = Vec::new();
 
@@ -76,34 +82,24 @@ impl MiniMaxUsageSegment {
             .and_then(format_reset_time)
             .unwrap_or_else(|| "--:--".to_string());
         parts.push(format!(
-            "{} {}% · {} {}",
-            token_icon, stats.interval_pct, clock_icon, reset_time
+            "{}{}{}% · {}{}{}",
+            token_icon, sep, stats.interval_pct, clock_icon, sep, reset_time
         ));
 
         // Call count (used/total)
         parts.push(format!(
-            "{} {}/{}",
-            chart_icon, stats.interval_used, stats.interval_total
+            "{}{}{}/{}",
+            chart_icon, sep, stats.interval_used, stats.interval_total
         ));
 
         // Weekly percentage (only if weekly limit exists)
         if let Some(pct) = stats.weekly_pct {
-            parts.push(format!("{} {}%", calendar_icon, pct));
+            parts.push(format!("{}{}{}%", calendar_icon, sep, pct));
         }
 
-        format!("MiniMax {}", parts.join(" · "))
+        format!("{} {}", prefix, parts.join(" · "))
     }
 
-    fn placeholder_text(&self) -> String {
-        let (token_icon, clock_icon, chart_icon, calendar_icon) = match self.char_mode {
-            CharMode::Emoji => ("🔋", "⏰", "📊", "📅"),
-            CharMode::Ascii => ("$", "T", "#", "%"),
-        };
-        format!(
-            "MiniMax {} % · {} --:-- · {} / · {} %",
-            token_icon, clock_icon, chart_icon, calendar_icon
-        )
-    }
 }
 
 impl Default for MiniMaxUsageSegment {
@@ -118,39 +114,18 @@ impl Segment for MiniMaxUsageSegment {
     }
 
     fn collect(&self, input: &InputData, config: &Config) -> Option<SegmentData> {
-        // Only show for MiniMax models
-        if let Some(model) = &input.model {
-            let model_id = model.id.to_lowercase();
-            if !model_id.contains("minimax") {
-                return None;
-            }
-        }
+        // No model filtering - show MiniMax usage only if API is configured
+        let stats = self.get_usage_stats(config)?;
 
-        let stats = self.get_usage_stats(config);
-
-        let (text, style) = match &stats {
-            Some(s) => (
-                Self::format_stats(s, self.char_mode),
-                SegmentStyle {
-                    color_256: Some(208),
-                    bold: true,
-                    color: None,
-                },
-            ),
-            None => (
-                self.placeholder_text(),
-                SegmentStyle {
-                    color_256: Some(208),
-                    bold: true,
-                    color: None,
-                },
-            ),
-        };
-
+        let model_name = input.model.as_ref().map(|m| m.id.as_str()).unwrap_or("MiniMax");
+        let text = Self::format_stats(&stats, self.char_mode, model_name);
         if text.is_empty() {
             None
         } else {
-            Some(SegmentData { text, style })
+            Some(SegmentData {
+                text,
+                style: SegmentStyle { color_256: Some(208), bold: true, color: None },
+            })
         }
     }
 }

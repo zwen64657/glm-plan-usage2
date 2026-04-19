@@ -20,4 +20,15 @@ lib/
 
 # NPM publish (generated during release)
 npm-publish/
+
+# Environment files (may contain API keys)
 .env
+.env.local
+.env.*.local
+
+# Security sensitive files
+*.key
+*.pem
+*.cert
+credentials.json
+.secrets/

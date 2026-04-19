@@ -24,8 +24,8 @@ impl Platform {
 /// API error types
 #[derive(Debug, Error)]
 pub enum ApiError {
-    #[error("Missing environment variable: {0}")]
-    MissingEnvVar(String),
+    #[error("Credential not found: {0}")]
+    CredentialNotFound(String),
 
     #[error("HTTP request failed: {0}")]
     HttpError(String),
@@ -38,21 +38,6 @@ pub enum ApiError {
 
     #[error("Platform detection failed")]
     PlatformDetectionFailed,
-}
-
-/// Quota limit response (actual ZHIPU API format)
-#[derive(Debug, Deserialize)]
-pub struct QuotaLimitResponse {
-    #[allow(dead_code)]
-    pub code: i32,
-    pub msg: String,
-    pub data: QuotaLimitData,
-    pub success: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct QuotaLimitData {
-    pub limits: Vec<QuotaLimitItem>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -96,21 +81,17 @@ pub struct ModelUsageApiResponse {
     #[allow(dead_code)]
     pub msg: Option<String>,
     pub data: Option<ModelUsageApiData>,
-    #[serde(default)]
-    pub success: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ModelUsageApiData {
-    #[serde(default)]
-    pub totalUsage: Option<ModelTotalUsage>,
-    #[serde(default)]
+    #[serde(rename = "totalUsage", default)]
     pub total_usage: Option<ModelTotalUsage>,
 }
 
 impl ModelUsageApiData {
     pub fn get_total_usage(&self) -> Option<&ModelTotalUsage> {
-        self.totalUsage.as_ref().or(self.total_usage.as_ref())
+        self.total_usage.as_ref()
     }
 }
 
@@ -164,6 +145,7 @@ pub struct UsageStats {
     pub weekly_usage: Option<QuotaUsage>,
     pub call_count: Option<i64>,
     pub tokens_used: Option<i64>,
+    #[allow(dead_code)]
     pub level: Option<PlanLevel>,
 }
 

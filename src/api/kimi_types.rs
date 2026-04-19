@@ -44,5 +44,6 @@ pub struct KimiUsageStats {
     pub five_hour_pct: u8,
     pub five_hour_reset: Option<String>, // ISO 8601 string
     pub weekly_pct: u8,
+    #[allow(dead_code)]
     pub weekly_reset: Option<String>,    // ISO 8601 string
 }

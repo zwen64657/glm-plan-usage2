@@ -1,4 +1,5 @@
 use super::kimi_types::*;
+use crate::config::{get_api_key, get_base_url};
 use anyhow::Result;
 use std::time::Duration;
 use ureq::{Agent, Request};
@@ -11,15 +12,17 @@ pub struct KimiApiClient {
 }
 
 impl KimiApiClient {
-    /// Create client from environment variables.
+    /// Create client from environment variables or Claude Code config.
     /// Requires `ANTHROPIC_BASE_URL` containing `kimi.com`.
-    /// Uses `ANTHROPIC_API_KEY` (not `ANTHROPIC_AUTH_TOKEN`).
+    /// Credential lookup: env var → Claude Code settings.json.
     pub fn from_env() -> Result<Self> {
-        let token = std::env::var("ANTHROPIC_API_KEY")
-            .map_err(|_| anyhow::anyhow!("Missing ANTHROPIC_API_KEY"))?;
+        let token = get_api_key()
+            .map_err(|_| anyhow::anyhow!("Missing API key (env or Claude config)"))?;
 
-        let base_url = std::env::var("ANTHROPIC_BASE_URL")
-            .map_err(|_| anyhow::anyhow!("Missing ANTHROPIC_BASE_URL"))?;
+        let base_url = get_base_url("");
+        if base_url.is_empty() {
+            return Err(anyhow::anyhow!("Missing base URL (env or Claude config)"));
+        }
 
         // Verify it's a Kimi URL
         if !base_url.contains("kimi.com") {
@@ -56,7 +59,7 @@ impl KimiApiClient {
             }
         }
 
-        Err(last_error.unwrap())
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("All retry attempts failed")))
     }
 
     fn try_fetch(&self) -> Result<KimiUsageStats> {

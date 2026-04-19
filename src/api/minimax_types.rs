@@ -39,8 +39,11 @@ pub struct MiniMaxUsageStats {
     pub interval_total: i64,
     pub interval_pct: u8,
     pub reset_time: Option<i64>,
+    #[allow(dead_code)]
     pub weekly_used: Option<i64>,
+    #[allow(dead_code)]
     pub weekly_total: Option<i64>,
     pub weekly_pct: Option<u8>,
+    #[allow(dead_code)]
     pub weekly_reset_time: Option<i64>,
 }

@@ -6,12 +6,12 @@ use std::path::PathBuf;
 pub trait ConfigLoader {
     fn load() -> Result<Config>;
     fn init_config() -> Result<PathBuf>;
-    fn config_path() -> PathBuf;
+    fn config_path() -> Result<PathBuf>;
 }
 
 impl ConfigLoader for Config {
     fn load() -> Result<Config> {
-        let path = Self::config_path();
+        let path = Self::config_path()?;
 
         if !path.exists() {
             return Ok(Config::default());
@@ -27,7 +27,7 @@ impl ConfigLoader for Config {
     }
 
     fn init_config() -> Result<PathBuf> {
-        let config_path = Self::config_path();
+        let config_path = Self::config_path()?;
         let config_dir = config_path
             .parent()
             .ok_or_else(|| anyhow::anyhow!("Invalid config path"))?;
@@ -49,11 +49,11 @@ impl ConfigLoader for Config {
         Ok(config_path)
     }
 
-    fn config_path() -> PathBuf {
-        dirs::home_dir()
-            .expect("No home directory found")
+    fn config_path() -> Result<PathBuf> {
+        Ok(dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("No home directory found"))?
             .join(".claude")
             .join("glm-plan-usage")
-            .join("config.toml")
+            .join("config.toml"))
     }
 }
